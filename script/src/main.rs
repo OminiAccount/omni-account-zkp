@@ -1,29 +1,25 @@
 //! A simple script to generate and verify the proof of a given program.
 
-use sp1_core::{SP1Prover, SP1Stdin, SP1Verifier};
+use sp1_sdk::{ProverClient, SP1Stdin};
 
 const ELF: &[u8] = include_bytes!("../../program/elf/riscv32im-succinct-zkvm-elf");
 
 fn main() {
     // Generate proof.
     let mut stdin = SP1Stdin::new();
-    let n = 186u32;
+    let n = 10u32;
     stdin.write(&n);
-    let mut proof = SP1Prover::prove(ELF, stdin).expect("proving failed");
 
-    // Read output.
-    let a = proof.stdout.read::<u128>();
-    let b = proof.stdout.read::<u128>();
-    println!("a: {}", a);
-    println!("b: {}", b);
+    let client = ProverClient::new();
+    let (pk, vk) = client.setup(ELF);
+    let proof = client
+        .prove(&pk, stdin)
+        .run()
+        .expect("failed to generate proof");
 
-    // Verify proof.
-    SP1Verifier::verify(ELF, &proof).expect("verification failed");
+    client.verify(&proof, &vk).expect("failed to verify proof");
+    println!("Successfully verified proof!");
 
-    // Save proof.
-    proof
-        .save("proof-with-io.json")
-        .expect("saving proof failed");
-
-    println!("successfully generated and verified proof for the program!")
+    let public_values = proof.public_values.raw();
+    println!("Public Values: {:?}", public_values);
 }
