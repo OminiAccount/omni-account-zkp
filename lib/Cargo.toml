@@ -4,3 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+alloy-sol-types =  "0.7.7"
+alloy = "0.2.1"
+sha3 = { version = "0.10.8", default-features = false }
+serde = { version = "1", features = ["derive"] }
+k256 = { version = "0.13", features = ["serde"] } 

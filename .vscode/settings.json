@@ -20,6 +20,7 @@
     "rust-analyzer.linkedProjects": [
         "program/Cargo.toml",
         "script/Cargo.toml",
+        "lib/Cargo.toml",
     ],
     "rust-analyzer.showUnlinkedFileNotification": false
 }
