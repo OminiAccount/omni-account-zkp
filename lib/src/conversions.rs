@@ -17,9 +17,15 @@ pub fn verifying_key_to_ethereum_address(verifying_key: &VerifyingKey) -> String
 }
 
 // Compatible with hexadecimal strings with or without a 0x prefix
-pub fn hex_to_alloy_address(hex_address: &str) -> Address {
+pub fn addr_hex_to_bytes(hex_address: &str) -> [u8; 20] {
     let bytes_addr = hex::decode(hex_address).expect("Invalid hex string");
     let address_bytes: [u8; 20] = bytes_addr.try_into().expect("Slice with incorrect length");
+    address_bytes
+}
+
+// Compatible with hexadecimal strings with or without a 0x prefix
+pub fn hex_to_alloy_address(hex_address: &str) -> Address {
+    let address_bytes = addr_hex_to_bytes(hex_address);
     Address::from(address_bytes)
 }
 
@@ -46,7 +52,7 @@ mod tests {
         let verifying_key = signing_key.verifying_key();
 
         let expected_address = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
-        let actual_address = verifying_key_to_ethereum_address(&verifying_key);
+        let actual_address = verifying_key_to_ethereum_address(verifying_key);
 
         assert_eq!(expected_address, actual_address);
     }

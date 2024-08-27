@@ -6,3 +6,6 @@ edition = "2021"
 
 [dependencies]
 sp1-zkvm = { git = "https://github.com/succinctlabs/sp1.git" }
+omni-account-lib = { path = "../lib" }
+k256 = { version = "0.13", features = ["serde"] } 
+alloy = "0.2.1"

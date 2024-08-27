@@ -6,6 +6,8 @@ edition = "2021"
 
 [dependencies]
 sp1-sdk = "1.1.1"
+omni-account-lib = { path = "../lib" }
+
 
 [build-dependencies]
 sp1-helper = { git = "https://github.com/succinctlabs/sp1.git" }

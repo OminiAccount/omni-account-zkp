@@ -3,30 +3,34 @@ use alloy_sol_types::SolStruct;
 use k256::ecdsa::{RecoveryId, Signature, SigningKey, VerifyingKey};
 use sha3::{Digest, Keccak256};
 
-use crate::{conversions::hex_to_alloy_address, types::UserOperation};
+use crate::{
+    conversions::hex_to_alloy_address,
+    types::{UserOperation, UserOperationRust},
+};
 
 pub fn create_mock_signed_user_operation(
     address: String,
     private_key_hex: &str,
     chain_id: u64,
-) -> (UserOperation, Signature, RecoveryId, VerifyingKey) {
+) -> (UserOperationRust, Signature, RecoveryId, VerifyingKey) {
     // we share chain_id and eth_addr between user_op and app domain for convenience
 
     let eth_address = hex_to_alloy_address(&address);
+    let user_op_rust = UserOperationRust {
+        sender: address,
+        nonce: 1,
+        chain_id,
+        init_code: vec![],
+        call_data: vec![],
+        call_gas_limit: 21000,
+        verification_gas_limit: 21000,
+        pre_verification_gas: 10000,
+        max_fee_per_gas: 20000000000u128,
+        max_priority_fee_per_gas: 1000000000u128,
+        paymaster_and_data: vec![],
+    };
 
-    let user_operation = UserOperation::new(
-        address,
-        1,
-        42161,
-        vec![],
-        vec![],
-        21000,
-        21000,
-        10000,
-        20000000000u128,
-        1000000000u128,
-        vec![],
-    );
+    let user_operation = user_op_rust.to_user_operation();
 
     let my_domain = alloy_sol_types::eip712_domain!(
         name: "ZK-AA",
@@ -56,7 +60,7 @@ pub fn create_mock_signed_user_operation(
 
     let verifying_key = VerifyingKey::recover_from_digest(digest.clone(), &sig, recid).unwrap();
 
-    (user_operation, sig, recid, verifying_key)
+    (user_op_rust, sig, recid, verifying_key)
 }
 
 pub fn recover_public_key_from_userop_signature(
@@ -103,13 +107,14 @@ mod tests {
             create_mock_signed_user_operation(hex_address.to_string(), private_key_hex, chain_id);
 
         let verifying_key = recover_public_key_from_userop_signature(
-            user_operation,
+            user_operation.to_user_operation(),
             chain_id,
             eth_address,
             sig,
             recid,
         );
 
+        println!("recovery id: {:?}", recid.to_byte());
         let eth_addr = verifying_key_to_ethereum_address(&verifying_key);
         println!("ETH Address: {}", eth_addr);
 
