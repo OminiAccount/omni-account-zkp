@@ -77,3 +77,10 @@ pub struct ProofInputs {
     pub eth_reconvery_id: u8,
     pub domain_info: DomainInfo,
 }
+
+sol! {
+    /// The public values encoded as a struct that can be easily deserialized inside Solidity.
+    struct ProofOutputs {
+        address user_addr;
+    }
+}

@@ -6,11 +6,14 @@ const ELF: &[u8] = include_bytes!("../../program/elf/riscv32im-succinct-zkvm-elf
 
 use omni_account_lib::{
     conversions::addr_hex_to_bytes,
-    types::{DomainInfo, ProofInputs},
+    types::{DomainInfo, ProofInputs, ProofOutputs},
     user_operation::create_mock_signed_user_operation,
 };
 
+use alloy_sol_types::SolType;
+
 fn main() {
+    sp1_sdk::utils::setup_logger();
     // Prepare Proof Inputs
     let mut stdin = SP1Stdin::new();
 
@@ -52,4 +55,8 @@ fn main() {
 
     let public_values = proof.public_values.raw();
     println!("Public Values: {:?}", public_values);
+
+    let output_bytes = proof.public_values.as_slice();
+    let ProofOutputs { user_addr } = ProofOutputs::abi_decode(output_bytes, false).unwrap();
+    println!("abi decoded Public Values: {:?}", user_addr);
 }

@@ -4,10 +4,11 @@
 sp1_zkvm::entrypoint!(main);
 
 use alloy::primitives::Address;
+use alloy_sol_types::SolType;
 use k256::ecdsa::{RecoveryId, Signature};
 use omni_account_lib::{
-    conversions::verifying_key_to_ethereum_address,
-    types::{ProofInputs, UserOperationRust},
+    conversions::{hex_to_alloy_address, verifying_key_to_ethereum_address},
+    types::{ProofInputs, ProofOutputs, UserOperationRust},
     user_operation::recover_public_key_from_userop_signature,
 };
 
@@ -73,7 +74,11 @@ pub fn main() {
         recovery_id,
     );
 
-    let user_aa_contract_addr = verifying_key_to_ethereum_address(&verifying_key);
+    let user_addr_str = verifying_key_to_ethereum_address(&verifying_key);
 
-    sp1_zkvm::io::commit::<String>(&user_aa_contract_addr);
+    let user_addr = hex_to_alloy_address(&user_addr_str);
+
+    let output_bytes = ProofOutputs::abi_encode(&ProofOutputs { user_addr });
+
+    sp1_zkvm::io::commit_slice(&output_bytes);
 }
