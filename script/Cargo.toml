@@ -3,12 +3,21 @@
 version = "0.1.0"
 name = "omni-account-zkp-script"
 edition = "2021"
+default-run = "omni-account-zkp-script"
 
 [dependencies]
 sp1-sdk = "1.1.1"
 omni-account-lib = { path = "../lib" }
+alloy = "0.2.1"
 alloy-sol-types =  "0.7.7"
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+
 
 
 [build-dependencies]
 sp1-helper = { git = "https://github.com/succinctlabs/sp1.git" }
+
+[[bin]]
+name = "plonk_bn254"
+path = "bin/plonk_bn254.rs"
