@@ -10,10 +10,46 @@ use omni_account_lib::{
     conversions::{hex_to_alloy_address, verifying_key_to_ethereum_address},
     types::{ProofInputs, ProofOutputs, UserOperationRust},
     user_operation::recover_public_key_from_userop_signature,
+    zero_smt::smt::{
+        verify_delta_merkle_proof, verify_merkle_proof, DeltaMerkleProof, MerkleNodeValue,
+        MerkleProof,
+    },
 };
 
 pub fn main() {
     let proof_inputs = sp1_zkvm::io::read::<ProofInputs>();
+    let old_smt_root = sp1_zkvm::io::read::<MerkleNodeValue>();
+    let merkle_proof = sp1_zkvm::io::read::<MerkleProof>();
+    let delta_merkle_proof = sp1_zkvm::io::read::<DeltaMerkleProof>();
+
+    assert!(
+        verify_merkle_proof(merkle_proof.clone()),
+        "Invalid Merkle Proof!"
+    );
+    assert!(old_smt_root == merkle_proof.root, "Mismatch Merkle Proof!");
+
+    let valid_value1 = merkle_proof.value;
+    let valid_index1 = merkle_proof.index;
+
+    println!(
+        "value1 and index1 is valid now! Feel free to use: value: {}, index: {}",
+        valid_value1, valid_index1
+    );
+
+    assert!(
+        verify_delta_merkle_proof(delta_merkle_proof.clone()),
+        "Invalid Delta Merkle Proof!"
+    );
+    assert!(
+        old_smt_root == delta_merkle_proof.old_root,
+        "Mismatch Delta Merkle Proof!"
+    );
+
+    println!(
+        "new state root is valid now! Feel free to use: {}",
+        delta_merkle_proof.new_root
+    );
+
     let user_op = proof_inputs.user_operation;
 
     let sender = user_op.sender;

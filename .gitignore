@@ -17,4 +17,4 @@ pgo-data.profdata
 **/proof-with-pis.json
 **/proof-with-io.json
 
-/lib/src/zero_smt/
+proof-with-pis.bin

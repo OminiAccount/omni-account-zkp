@@ -8,6 +8,10 @@ use omni_account_lib::{
     conversions::addr_hex_to_bytes,
     types::{DomainInfo, ProofInputs, ProofOutputs},
     user_operation::create_mock_signed_user_operation,
+    zero_smt::smt::{
+        verify_delta_merkle_proof, verify_merkle_proof, DeltaMerkleProof, MerkleNodeValue,
+        MerkleProof, ZeroMerkleTree,
+    },
 };
 
 use alloy_sol_types::SolType;
@@ -43,6 +47,13 @@ fn main() {
     };
     stdin.write(&proof_inputs);
 
+    // mock smt input write
+    let (old_smt_root, merkle_proof, delta_proof) = prepare_mock_smt();
+    stdin.write(&old_smt_root);
+    stdin.write(&merkle_proof);
+    stdin.write(&delta_proof);
+    println!("SMT write end!");
+
     let client = ProverClient::new();
     let (pk, vk) = client.setup(ELF);
     let proof = client
@@ -59,4 +70,52 @@ fn main() {
     let output_bytes = proof.public_values.as_slice();
     let ProofOutputs { user_addr } = ProofOutputs::abi_decode(output_bytes, false).unwrap();
     println!("abi decoded Public Values: {:?}", user_addr);
+}
+
+fn prepare_mock_smt() -> (MerkleNodeValue, MerkleProof, DeltaMerkleProof) {
+    let mut tree = ZeroMerkleTree::new(50);
+    // TODO: should not use usize here, 999_999_999_999 cannot be set in the zkvm usize
+    let delta_a = tree.set_leaf(
+        999_999,
+        "0000000000000000000000000000000000000000000000000000000000000008".to_string(),
+    );
+
+    let proof_a = tree.get_leaf(999_999);
+
+    let delta_b = tree.set_leaf(
+        1337,
+        "0000000000000000000000000000000000000000000000000000000000000007".to_string(),
+    );
+
+    let proof_b = tree.get_leaf(1337);
+
+    println!(
+        "verifyDeltaMerkleProof(deltaA): {}",
+        verify_delta_merkle_proof(delta_a.clone())
+    );
+    println!(
+        "verifyDeltaMerkleProof(deltaB): {}",
+        verify_delta_merkle_proof(delta_b.clone())
+    );
+    println!(
+        "deltaA.newRoot == deltaB.oldRoot: {}",
+        delta_a.new_root == delta_b.old_root
+    );
+
+    println!(
+        "verifyMerkleProof(proofA): {}",
+        verify_merkle_proof(proof_a.clone())
+    );
+    println!(
+        "verifyMerkleProof(proofB): {}",
+        verify_merkle_proof(proof_b.clone())
+    );
+
+    println!("proofA: {:#?}", proof_a);
+    println!("proofB: {:#?}", proof_b);
+
+    let old_smt_root = delta_a.new_root;
+    let merkle_proof = proof_a;
+    let delta_proof = delta_b;
+    (old_smt_root, merkle_proof, delta_proof)
 }
