@@ -18,7 +18,7 @@ pub fn create_mock_signed_user_operation(
     let eth_address = hex_to_alloy_address(&address);
     let user_op_rust = UserOperationRust {
         sender: address,
-        nonce: 1,
+        nonce: 8,
         chain_id,
         init_code: vec![],
         call_data: vec![],

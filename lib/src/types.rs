@@ -82,5 +82,6 @@ sol! {
     /// The public values encoded as a struct that can be easily deserialized inside Solidity.
     struct ProofOutputs {
         address user_addr;
+        bytes32 new_smt_root;
     }
 }

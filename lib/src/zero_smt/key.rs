@@ -1,12 +1,14 @@
-use sha3::{Digest, Keccak256};
+use alloy::hex;
+// use sha3::{Digest, Keccak256};
+use sha2::{Digest, Sha256};
 
-enum LeafValue {
+pub enum LeafValue {
     Balance(u128),
     Nonce(u64),
 }
 
-fn compute_leaf_key(user_address: &[u8], value: &LeafValue, chain_id: Option<u64>) -> Vec<u8> {
-    let mut hasher = Keccak256::new();
+pub fn compute_leaf_key(user_address: &[u8], value: &LeafValue, chain_id: Option<u64>) -> String {
+    let mut hasher = Sha256::new();
     let mut padded_input = vec![0u8; 32];
 
     match value {
@@ -26,7 +28,37 @@ fn compute_leaf_key(user_address: &[u8], value: &LeafValue, chain_id: Option<u64
     }
 
     hasher.update(padded_input);
-    hasher.finalize().to_vec()
+    let leaf_key = hasher.finalize();
+    hex::encode(leaf_key)
+}
+
+pub fn compute_balance_key(user_address: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    let mut padded_input = vec![0u8; 32];
+    // identifier 0 for balance
+    padded_input[0] = 0;
+    padded_input[1..1 + user_address.len()].copy_from_slice(user_address);
+    hasher.update(padded_input);
+    let leaf_key = hasher.finalize();
+    hex::encode(leaf_key)
+}
+
+pub fn compute_nonce_key(user_address: &[u8], chain_id: u64) -> String {
+    let mut hasher = Sha256::new();
+    let mut padded_input = vec![0u8; 32];
+    // identifier 1 for nonce
+    padded_input[0] = 1;
+    padded_input[1..1 + user_address.len()].copy_from_slice(user_address);
+    padded_input[21..21 + 8].copy_from_slice(&chain_id.to_be_bytes());
+    hasher.update(padded_input);
+    let leaf_key = hasher.finalize();
+    hex::encode(leaf_key)
+}
+
+// for now, we just use u32 index
+pub fn key_to_index(key: String) -> usize {
+    let truncated_str = &key[key.len() - 8..];
+    usize::from_str_radix(truncated_str, 16).expect("Invalid hex string")
 }
 
 #[cfg(test)]
@@ -48,5 +80,14 @@ mod tests {
 
         let nonce_key = compute_leaf_key(&user_address, &nonce, Some(chain_id));
         println!("Nonce Key: {:?}", nonce_key);
+
+        let balance_key2 = compute_balance_key(&user_address);
+        println!("Balance Key2: {:?}", balance_key2);
+
+        let nonce_key2 = compute_nonce_key(&user_address, chain_id);
+        println!("Nonce Key2: {:?}", nonce_key2);
+
+        assert_eq!(balance_key, balance_key2);
+        assert_eq!(nonce_key, nonce_key2);
     }
 }

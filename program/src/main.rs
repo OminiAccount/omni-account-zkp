@@ -3,16 +3,19 @@
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
-use alloy::primitives::Address;
+use alloy::{hex, primitives::Address};
 use alloy_sol_types::SolType;
 use k256::ecdsa::{RecoveryId, Signature};
 use omni_account_lib::{
-    conversions::{hex_to_alloy_address, verifying_key_to_ethereum_address},
+    conversions::{addr_hex_to_bytes, hex_to_alloy_address, verifying_key_to_ethereum_address},
     types::{ProofInputs, ProofOutputs, UserOperationRust},
     user_operation::recover_public_key_from_userop_signature,
-    zero_smt::smt::{
-        verify_delta_merkle_proof, verify_merkle_proof, DeltaMerkleProof, MerkleNodeValue,
-        MerkleProof,
+    zero_smt::{
+        key::{compute_balance_key, compute_nonce_key, key_to_index},
+        smt::{
+            verify_delta_merkle_proof, verify_merkle_proof, DeltaMerkleProof, MerkleNodeValue,
+            MerkleProof,
+        },
     },
 };
 
@@ -21,34 +24,7 @@ pub fn main() {
     let old_smt_root = sp1_zkvm::io::read::<MerkleNodeValue>();
     let merkle_proof = sp1_zkvm::io::read::<MerkleProof>();
     let delta_merkle_proof = sp1_zkvm::io::read::<DeltaMerkleProof>();
-
-    assert!(
-        verify_merkle_proof(merkle_proof.clone()),
-        "Invalid Merkle Proof!"
-    );
-    assert!(old_smt_root == merkle_proof.root, "Mismatch Merkle Proof!");
-
-    let valid_value1 = merkle_proof.value;
-    let valid_index1 = merkle_proof.index;
-
-    println!(
-        "value1 and index1 is valid now! Feel free to use: value: {}, index: {}",
-        valid_value1, valid_index1
-    );
-
-    assert!(
-        verify_delta_merkle_proof(delta_merkle_proof.clone()),
-        "Invalid Delta Merkle Proof!"
-    );
-    assert!(
-        old_smt_root == delta_merkle_proof.old_root,
-        "Mismatch Delta Merkle Proof!"
-    );
-
-    println!(
-        "new state root is valid now! Feel free to use: {}",
-        delta_merkle_proof.new_root
-    );
+    let delta_merkle_proof_nonce = sp1_zkvm::io::read::<DeltaMerkleProof>();
 
     let user_op = proof_inputs.user_operation;
 
@@ -82,7 +58,7 @@ pub fn main() {
 
     // 2. get the raw message, which is the user_op
     let user_op = UserOperationRust {
-        sender,
+        sender: sender.clone(),
         nonce,
         chain_id,
         init_code,
@@ -114,7 +90,103 @@ pub fn main() {
 
     let user_addr = hex_to_alloy_address(&user_addr_str);
 
-    let output_bytes = ProofOutputs::abi_encode(&ProofOutputs { user_addr });
+    // example to use merkle proof
+    println!("old smt root in zk program: {}", old_smt_root.clone());
+
+    let mut current_smt_root = old_smt_root;
+    let sender_balance_key = compute_balance_key(&addr_hex_to_bytes(&sender));
+
+    assert!(
+        verify_merkle_proof(merkle_proof.clone()),
+        "Invalid Merkle Proof!"
+    );
+    assert!(
+        current_smt_root == merkle_proof.root,
+        "Mismatch Merkle Proof!"
+    );
+
+    let valid_value1 = merkle_proof.value;
+    let valid_index1 = merkle_proof.index;
+
+    println!(
+        "value1 and index1 is valid now! Feel free to use: value: {}, index: {}",
+        valid_value1, valid_index1
+    );
+
+    assert_eq!(key_to_index(sender_balance_key.clone()), valid_index1);
+
+    let sender_balance = u128::from_str_radix(&valid_value1, 16).unwrap();
+
+    println!("old sender balance in zk program: {}", sender_balance);
+
+    // example to use delta proof to update smt_root
+    let remaining_balance = sender_balance
+        - (call_gas_limit + verification_gas_limit + pre_verification_gas)
+            * (max_fee_per_gas + max_priority_fee_per_gas);
+
+    assert!(
+        verify_delta_merkle_proof(delta_merkle_proof.clone()),
+        "Invalid Delta Merkle Proof!"
+    );
+    assert!(
+        current_smt_root == delta_merkle_proof.old_root,
+        "Mismatch Delta Merkle Proof!"
+    );
+
+    println!(
+        "new state root is valid now! Feel free to use: {}",
+        delta_merkle_proof.new_root.clone()
+    );
+
+    current_smt_root = delta_merkle_proof.new_root;
+
+    // we know the smt is updated at index from old value to new value
+    // we need to ensure that the index is the sender balance index and the old value is the old balance, new value is the new balance
+    assert_eq!(
+        delta_merkle_proof.new_value,
+        format!("{:0>64x}", remaining_balance)
+    );
+    assert_eq!(
+        delta_merkle_proof.old_value,
+        format!("{:0>64x}", sender_balance)
+    );
+    assert_eq!(delta_merkle_proof.index, key_to_index(sender_balance_key));
+
+    println!("new sender balance in zk program: {}", remaining_balance);
+
+    // Example: delta proof is all you need
+    assert!(
+        verify_delta_merkle_proof(delta_merkle_proof_nonce.clone()),
+        "Invalid Delta Merkle Proof!"
+    );
+    assert!(
+        current_smt_root == delta_merkle_proof_nonce.old_root,
+        "Mismatch Delta Merkle Proof!"
+    );
+    // again, we know the smt is updated at index from old value to new value
+    // we need to ensure that the index is the sender nonce index and the old value is the old nonce, new value is new nonce
+    let nonce_key = compute_nonce_key(&addr_hex_to_bytes(&sender), chain_id);
+    assert_eq!(delta_merkle_proof_nonce.index, key_to_index(nonce_key));
+    assert_eq!(
+        u64::from_str_radix(&delta_merkle_proof_nonce.old_value, 16).unwrap(),
+        nonce - 1
+    );
+    assert_eq!(
+        u64::from_str_radix(&delta_merkle_proof_nonce.new_value, 16).unwrap(),
+        nonce
+    );
+
+    current_smt_root = delta_merkle_proof_nonce.new_root;
+
+    println!("old sender nonce in zk program: {}", nonce - 1);
+    println!("new sender nonce in zk program: {}", nonce); // nonce in UserOp, which is aligned with the delta proof
+
+    println!("final smt root in zk program: {}", current_smt_root.clone());
+    let new_smt_root: [u8; 32] = hex::decode(current_smt_root).unwrap().try_into().unwrap();
+    let output_bytes = ProofOutputs::abi_encode(&ProofOutputs {
+        user_addr,
+        new_smt_root: new_smt_root.into(),
+    });
 
     sp1_zkvm::io::commit_slice(&output_bytes);
 }

@@ -91,11 +91,15 @@ fn create_plonk_fixture(proof: &SP1ProofWithPublicValues, vk: &SP1VerifyingKey) 
     // Deserialize the public values.
 
     let output_bytes = proof.public_values.as_slice();
-    let ProofOutputs { user_addr } = ProofOutputs::abi_decode(output_bytes, false).unwrap();
+    let ProofOutputs {
+        user_addr,
+        new_smt_root,
+    } = ProofOutputs::abi_decode(output_bytes, false).unwrap();
     println!(
-        "abi decoded Public Values: {:?}",
+        "abi decoded user address: {:?}",
         user_addr.to_checksum(None)
     );
+    println!("abi decoded new_smt_root: {:?}", hex::encode(new_smt_root));
     let user_addr_bytes = user_addr.to_vec();
 
     // Create the testing fixture so we can test things end-to-end.
