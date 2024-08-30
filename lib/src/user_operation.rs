@@ -1,4 +1,5 @@
-use alloy::{hex, primitives::Address};
+use alloy::hex;
+use alloy_primitives::Address;
 use alloy_sol_types::SolStruct;
 use k256::ecdsa::{RecoveryId, Signature, SigningKey, VerifyingKey};
 use sha3::{Digest, Keccak256};

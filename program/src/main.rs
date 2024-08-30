@@ -5,7 +5,8 @@ sp1_zkvm::entrypoint!(main);
 
 use std::ops::Add;
 
-use alloy::{hex, primitives::Address};
+use alloy::hex;
+use alloy_primitives::Address;
 use alloy_sol_types::SolType;
 use k256::ecdsa::{RecoveryId, Signature};
 use omni_account_lib::{

@@ -1,4 +1,5 @@
-use alloy::{hex, primitives::U256};
+use alloy::hex;
+use alloy_primitives::U256;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;

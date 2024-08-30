@@ -1,4 +1,5 @@
-use alloy::{hex, primitives::Address};
+use alloy::hex;
+use alloy_primitives::Address;
 use k256::ecdsa::VerifyingKey;
 use sha3::{Digest, Keccak256};
 

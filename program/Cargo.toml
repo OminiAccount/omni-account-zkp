@@ -5,10 +5,13 @@ name = "omni-account-zkp-program"
 edition = "2021"
 
 [dependencies]
-sp1-zkvm = { git = "https://github.com/succinctlabs/sp1.git" }
+# sp1-zkvm = { git = "https://github.com/succinctlabs/sp1.git" }
+sp1-zkvm = "1.1.0"
 omni-account-lib = { path = "../lib" }
 k256 = { version = "0.13", features = ["serde"] } 
 alloy = "0.2.1"
+alloy-primitives = { version = "0.7.7", features = ["serde"] }
+# hex = "0.4.3"
 alloy-sol-types =  "0.7.7"
 
 

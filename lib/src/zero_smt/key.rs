@@ -1,4 +1,5 @@
 use alloy::hex;
+use alloy_primitives::U256;
 // use sha3::{Digest, Keccak256};
 use sha2::{Digest, Sha256};
 
@@ -59,6 +60,7 @@ pub fn compute_nonce_key(user_address: &[u8], chain_id: u64) -> String {
 pub fn key_to_index(key: String) -> usize {
     let truncated_str = &key[key.len() - 8..];
     usize::from_str_radix(truncated_str, 16).expect("Invalid hex string")
+    // U256::from_str_radix(src, radix)
 }
 
 #[cfg(test)]
