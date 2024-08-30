@@ -15,13 +15,13 @@ pub type MerkleNodeValue = String;
 pub struct MerkleProof {
     pub root: MerkleNodeValue,
     pub siblings: Vec<MerkleNodeValue>,
-    pub index: usize,
+    pub index: U256,
     pub value: MerkleNodeValue,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeltaMerkleProof {
-    pub index: usize,
+    pub index: U256,
     pub siblings: Vec<MerkleNodeValue>,
     pub old_root: MerkleNodeValue,
     pub old_value: MerkleNodeValue,
@@ -71,15 +71,15 @@ impl NodeStore {
         }
     }
 
-    fn contains(&self, level: usize, index: usize) -> bool {
+    fn contains(&self, level: usize, index: U256) -> bool {
         self.nodes.contains_key(&format!("{}_{}", level, index))
     }
 
-    fn set(&mut self, level: usize, index: usize, value: MerkleNodeValue) {
+    fn set(&mut self, level: usize, index: U256, value: MerkleNodeValue) {
         self.nodes.insert(format!("{}_{}", level, index), value);
     }
 
-    fn get(&self, level: usize, index: usize) -> MerkleNodeValue {
+    fn get(&self, level: usize, index: U256) -> MerkleNodeValue {
         if self.contains(level, index) {
             self.nodes
                 .get(&format!("{}_{}", level, index))
@@ -104,9 +104,8 @@ impl ZeroMerkleTree {
         }
     }
 
-    // TODO: index should be U256
-    pub fn set_leaf(&mut self, index: usize, value: MerkleNodeValue) -> DeltaMerkleProof {
-        let old_root = self.node_store.get(0, 0);
+    pub fn set_leaf(&mut self, index: U256, value: MerkleNodeValue) -> DeltaMerkleProof {
+        let old_root = self.node_store.get(0, U256::ZERO);
         let old_value = self.node_store.get(self.height, index);
 
         let mut siblings = vec![];
@@ -118,20 +117,20 @@ impl ZeroMerkleTree {
             self.node_store
                 .set(level, current_index, current_value.clone());
 
-            if current_index % 2 == 0 {
-                let right_sibling = self.node_store.get(level, current_index + 1);
+            if current_index % U256::from(2) == U256::ZERO {
+                let right_sibling = self.node_store.get(level, current_index + U256::from(1));
                 current_value = hash(&current_value, &right_sibling);
                 siblings.push(right_sibling);
             } else {
-                let left_sibling = self.node_store.get(level, current_index - 1);
+                let left_sibling = self.node_store.get(level, current_index - U256::from(1));
                 current_value = hash(&left_sibling, &current_value);
                 siblings.push(left_sibling);
             }
 
-            current_index /= 2;
+            current_index /= U256::from(2);
         }
 
-        self.node_store.set(0, 0, current_value.clone());
+        self.node_store.set(0, U256::ZERO, current_value.clone());
 
         DeltaMerkleProof {
             index,
@@ -143,7 +142,7 @@ impl ZeroMerkleTree {
         }
     }
 
-    pub fn get_leaf(&self, index: usize) -> MerkleProof {
+    pub fn get_leaf(&self, index: U256) -> MerkleProof {
         let mut siblings = vec![];
 
         let value = self.node_store.get(self.height, index);
@@ -152,17 +151,17 @@ impl ZeroMerkleTree {
         let mut current_value = value.clone();
 
         for level in (1..=self.height).rev() {
-            if current_index % 2 == 0 {
-                let right_sibling = self.node_store.get(level, current_index + 1);
+            if current_index % U256::from(2) == U256::ZERO {
+                let right_sibling = self.node_store.get(level, current_index + U256::from(1));
                 current_value = hash(&current_value, &right_sibling);
                 siblings.push(right_sibling);
             } else {
-                let left_sibling = self.node_store.get(level, current_index - 1);
+                let left_sibling = self.node_store.get(level, current_index - U256::from(1));
                 current_value = hash(&left_sibling, &current_value);
                 siblings.push(left_sibling);
             }
 
-            current_index /= 2;
+            current_index /= U256::from(2);
         }
 
         let root = current_value;
@@ -176,26 +175,26 @@ impl ZeroMerkleTree {
     }
 
     pub fn get_root(&self) -> MerkleNodeValue {
-        self.node_store.get(0, 0)
+        self.node_store.get(0, U256::ZERO)
     }
 }
 
 pub fn compute_merkle_root_from_proof(
     siblings: Vec<MerkleNodeValue>,
-    index: usize,
+    index: U256,
     value: MerkleNodeValue,
 ) -> MerkleNodeValue {
     let mut merkle_path_node_value = value;
     let mut merkle_path_node_index = index;
 
     for sibling in siblings {
-        if merkle_path_node_index % 2 == 0 {
+        if merkle_path_node_index % U256::from(2) == U256::ZERO {
             merkle_path_node_value = hash(&merkle_path_node_value, &sibling);
         } else {
             merkle_path_node_value = hash(&sibling, &merkle_path_node_value);
         }
 
-        merkle_path_node_index /= 2;
+        merkle_path_node_index /= U256::from(2);
     }
     merkle_path_node_value
 }
@@ -232,6 +231,48 @@ mod tests {
     use super::*;
 
     #[test]
+    fn op_test_alloy_u256() {
+        // from
+        let num1 = U256::from(10);
+        let num2 = U256::from(20);
+        let num3 = U256::from(29);
+        let num_zero = U256::from(0);
+        assert_eq!(num_zero, U256::ZERO);
+        let max_value = U256::MAX;
+
+        // add
+        assert_eq!(num1 + num2, U256::from(30));
+        assert_eq!(max_value + U256::from(1), U256::from(0));
+
+        // sub
+        assert_eq!(num2 - num1, U256::from(10));
+        assert_eq!(num1 - num2, max_value - U256::from(9)); // circle
+
+        // mul
+        assert_eq!(num1 * num2, U256::from(200));
+        assert_eq!(num1 * num_zero, U256::from(0));
+        assert_eq!(max_value * U256::from(2), max_value - U256::from(1));
+
+        // div
+        assert_eq!(num2 / num1, U256::from(2));
+        assert_eq!(max_value / U256::from(2), max_value >> 1);
+        assert_eq!(num3 / num1, U256::from(2));
+        assert_eq!(U256::ZERO / U256::from(2), U256::ZERO);
+        assert_eq!(U256::from(1) / U256::from(2), U256::ZERO);
+
+        // mod
+        assert_eq!(num2 % num1, U256::from(0));
+        assert_eq!(max_value % U256::from(3), U256::from(0));
+
+        // corner case
+        assert_eq!(U256::from(1) - U256::from(1), U256::from(0));
+        assert_eq!(max_value + U256::from(1), U256::from(0));
+        assert_eq!(U256::from(0) * max_value, U256::from(0));
+        assert_eq!(max_value / U256::from(1), max_value);
+        assert_eq!(max_value % max_value, U256::from(0));
+    }
+
+    #[test]
     fn example1() {
         let zero_hashes = compute_zero_hashes(32);
         let formatted_output = to_string_pretty(&zero_hashes).unwrap();
@@ -256,7 +297,7 @@ mod tests {
         ];
         let mut tree = ZeroMerkleTree::new(3);
         for (index, leaf) in leaves_to_set.iter().enumerate() {
-            tree.set_leaf(index, leaf.to_string());
+            tree.set_leaf(U256::from(index), leaf.to_string());
         }
         println!("[example2] the root is: {}", tree.get_root());
     }
@@ -281,7 +322,7 @@ mod tests {
         let delta_merkle_proofs: Vec<DeltaMerkleProof> = leaves_to_set
             .iter()
             .enumerate()
-            .map(|(index, leaf)| tree.set_leaf(index, leaf.to_string()))
+            .map(|(index, leaf)| tree.set_leaf(U256::from(index), leaf.to_string()))
             .collect();
 
         for (i, delta_proof) in delta_merkle_proofs.iter().enumerate() {
@@ -306,7 +347,7 @@ mod tests {
         }
 
         for (i, leaf) in leaves_to_set.iter().enumerate() {
-            let proof = tree.get_leaf(i);
+            let proof = tree.get_leaf(U256::from(i));
             if !verify_merkle_proof(proof.clone()) {
                 eprintln!(
                     "[example5] ERROR: merkle proof for index {} is INVALID",
@@ -335,16 +376,16 @@ mod tests {
     fn example4() {
         let mut tree = ZeroMerkleTree::new(50);
         let delta_a = tree.set_leaf(
-            999_999_999_999,
+            U256::from_str_radix("999_999_999_999", 10).unwrap(),
             "0000000000000000000000000000000000000000000000000000000000000008".to_string(),
         );
         let delta_b = tree.set_leaf(
-            1337,
+            U256::from(1337),
             "0000000000000000000000000000000000000000000000000000000000000007".to_string(),
         );
 
-        let proof_a = tree.get_leaf(999_999_999_999);
-        let proof_b = tree.get_leaf(1337);
+        let proof_a = tree.get_leaf(U256::from_str_radix("999_999_999_999", 10).unwrap());
+        let proof_b = tree.get_leaf(U256::from(1337));
 
         println!(
             "verifyDeltaMerkleProof(deltaA): {}",

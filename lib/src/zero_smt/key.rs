@@ -56,11 +56,9 @@ pub fn compute_nonce_key(user_address: &[u8], chain_id: U64) -> String {
     hex::encode(leaf_key)
 }
 
-// for now, we just use u32 index
-pub fn key_to_index(key: String) -> usize {
-    let truncated_str = &key[key.len() - 8..];
-    usize::from_str_radix(truncated_str, 16).expect("Invalid hex string")
-    // U256::from_str_radix(src, radix)
+pub fn key_to_index(key: String) -> U256 {
+    let truncated_str = &key[key.len() - 64..];
+    U256::from_str_radix(truncated_str, 16).expect("Invalid hex string")
 }
 
 #[cfg(test)]

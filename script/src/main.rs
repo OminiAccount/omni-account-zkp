@@ -88,18 +88,18 @@ fn prepare_mock_smt() -> (MerkleNodeValue, MerkleProof, DeltaMerkleProof) {
     let mut tree = ZeroMerkleTree::new(50);
     // TODO: should not use usize here, 999_999_999_999 cannot be set in the zkvm usize
     let delta_a = tree.set_leaf(
-        999_999,
+        U256::from(999_999),
         "0000000000000000000000000000000000000000000000000000000000000008".to_string(),
     );
 
-    let proof_a = tree.get_leaf(999_999);
+    let proof_a = tree.get_leaf(U256::from(999_999));
 
     let delta_b = tree.set_leaf(
-        1337,
+        U256::from(1337),
         "0000000000000000000000000000000000000000000000000000000000000007".to_string(),
     );
 
-    let proof_b = tree.get_leaf(1337);
+    let proof_b = tree.get_leaf(U256::from(1337));
 
     println!(
         "verifyDeltaMerkleProof(deltaA): {}",
@@ -133,7 +133,7 @@ fn prepare_mock_smt() -> (MerkleNodeValue, MerkleProof, DeltaMerkleProof) {
 }
 
 fn prepare_mock_user_smt() -> (ZeroMerkleTree) {
-    let mut tree = ZeroMerkleTree::new(50);
+    let mut tree = ZeroMerkleTree::new(256);
 
     let sender_addr = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
     let balance_key = compute_balance_key(&addr_hex_to_bytes(sender_addr));

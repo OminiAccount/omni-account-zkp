@@ -111,7 +111,7 @@ fn update_nonce_smt(
 ) -> String {
     assert!(
         verify_delta_merkle_proof(delta_proof.clone()),
-        "Invalid Delta Merkle Proof!"
+        "Invalid Nonce Delta Merkle Proof!"
     );
     assert!(
         current_smt_root == delta_proof.old_root,
@@ -122,19 +122,19 @@ fn update_nonce_smt(
     // we need to ensure that the index is the sender nonce index and the old value is userop_nonce - 1, new value is userop_nonce
     let nonce_key = compute_nonce_key(userop_sender.as_ref(), userop_chainid);
     assert_eq!(delta_proof.index, key_to_index(nonce_key));
+    let userop_nonce_neg_one = userop_nonce
+        .checked_sub(U256::from(1))
+        .expect("Sub overflow");
     assert_eq!(
         U256::from_str_radix(&delta_proof.old_value, 16).unwrap(),
-        userop_nonce - U256::from(1)
+        userop_nonce_neg_one,
     );
     assert_eq!(
         U256::from_str_radix(&delta_proof.new_value, 16).unwrap(),
         userop_nonce
     );
 
-    println!(
-        "old sender nonce in zk program: {}",
-        userop_nonce - U256::from(1)
-    );
+    println!("old sender nonce in zk program: {}", userop_nonce_neg_one);
     println!("new sender nonce in zk program: {}", userop_nonce);
     delta_proof.new_root
 }
@@ -169,7 +169,7 @@ fn update_balance_smt(
 ) -> String {
     assert!(
         verify_delta_merkle_proof(delta_proof.clone()),
-        "Invalid Delta Merkle Proof!"
+        "Invalid Balance Delta Merkle Proof!"
     );
     assert!(
         current_smt_root == delta_proof.old_root,
@@ -181,9 +181,24 @@ fn update_balance_smt(
     assert_eq!(delta_proof.index, key_to_index(balance_key));
     let old_balance = delta_proof.old_value;
     println!("old sender balance in zk program: {}", old_balance);
-    let total_gas = call_gas_limit + verification_gas_limit + pre_verification_gas;
-    let total_gas_coeff = max_fee_per_gas + max_priority_fee_per_gas;
-    let new_balance = U256::from_str_radix(&old_balance, 16).unwrap() - total_gas * total_gas_coeff;
+    let total_gas = call_gas_limit
+        .checked_add(verification_gas_limit)
+        .expect("Add overflow")
+        .checked_add(pre_verification_gas)
+        .expect("Add overflow");
+    let total_gas_coeff = max_fee_per_gas
+        .checked_add(max_priority_fee_per_gas)
+        .expect("Add overflow");
+
+    let total_gas_cost = total_gas
+        .checked_mul(total_gas_coeff)
+        .expect("Mul overflow");
+    // let total_gas = call_gas_limit + verification_gas_limit + pre_verification_gas;
+    // let total_gas_coeff = max_fee_per_gas + max_priority_fee_per_gas;
+    let new_balance = U256::from_str_radix(&old_balance, 16)
+        .unwrap()
+        .checked_sub(total_gas_cost)
+        .expect("Sub overflow");
 
     assert_eq!(
         U256::from_str_radix(&delta_proof.new_value, 16).unwrap(),
