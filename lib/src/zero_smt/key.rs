@@ -1,5 +1,5 @@
 use alloy::hex;
-use alloy_primitives::U256;
+use alloy_primitives::{U256, U64};
 // use sha3::{Digest, Keccak256};
 use sha2::{Digest, Sha256};
 
@@ -8,7 +8,7 @@ pub enum LeafValue {
     Nonce(u64),
 }
 
-pub fn compute_leaf_key(user_address: &[u8], value: &LeafValue, chain_id: Option<u64>) -> String {
+pub fn compute_leaf_key(user_address: &[u8], value: &LeafValue, chain_id: Option<U64>) -> String {
     let mut hasher = Sha256::new();
     let mut padded_input = vec![0u8; 32];
 
@@ -23,7 +23,7 @@ pub fn compute_leaf_key(user_address: &[u8], value: &LeafValue, chain_id: Option
             padded_input[0] = 1;
             padded_input[1..1 + user_address.len()].copy_from_slice(user_address);
             if let Some(cid) = chain_id {
-                padded_input[21..21 + 8].copy_from_slice(&cid.to_be_bytes());
+                padded_input[21..21 + 8].copy_from_slice(&cid.to_be_bytes::<8>());
             }
         }
     }
@@ -44,13 +44,13 @@ pub fn compute_balance_key(user_address: &[u8]) -> String {
     hex::encode(leaf_key)
 }
 
-pub fn compute_nonce_key(user_address: &[u8], chain_id: u64) -> String {
+pub fn compute_nonce_key(user_address: &[u8], chain_id: U64) -> String {
     let mut hasher = Sha256::new();
     let mut padded_input = vec![0u8; 32];
     // identifier 1 for nonce
     padded_input[0] = 1;
     padded_input[1..1 + user_address.len()].copy_from_slice(user_address);
-    padded_input[21..21 + 8].copy_from_slice(&chain_id.to_be_bytes());
+    padded_input[21..21 + 8].copy_from_slice(&chain_id.to_be_bytes::<8>());
     hasher.update(padded_input);
     let leaf_key = hasher.finalize();
     hex::encode(leaf_key)
@@ -75,7 +75,7 @@ mod tests {
         let user_address = addr_hex_to_bytes(hex_address);
         let balance = LeafValue::Balance(1000);
         let nonce = LeafValue::Nonce(1001);
-        let chain_id = 42;
+        let chain_id = U64::from(42);
 
         let balance_key = compute_leaf_key(&user_address, &balance, None);
         println!("Balance Key: {:?}", balance_key);

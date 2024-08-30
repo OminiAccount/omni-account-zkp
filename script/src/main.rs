@@ -1,5 +1,6 @@
 //! A simple script to generate and verify the proof of a given program.
 
+use alloy_primitives::{U256, U64};
 use sp1_sdk::{ProverClient, SP1Stdin};
 
 const ELF: &[u8] = include_bytes!("../../program/elf/riscv32im-succinct-zkvm-elf");
@@ -142,7 +143,7 @@ fn prepare_mock_user_smt() -> (ZeroMerkleTree) {
         key_to_index(balance_key),
         "0000000000000000000000000000000000000000000000000de0b6b3a7640000".to_string(),
     );
-    let chain_id = 42161;
+    let chain_id = U64::from(42161);
     let nonce_key = compute_nonce_key(&addr_hex_to_bytes(sender_addr), chain_id);
 
     let _ = tree.set_leaf(
@@ -164,7 +165,7 @@ fn mock_user_op_smt(mut tree: ZeroMerkleTree) -> (MerkleProof, DeltaMerkleProof,
         create_mock_signed_user_operation(hex_address.to_string(), private_key_hex, chain_id);
 
     let sender_addr = user_operation.sender;
-    let balance_key = compute_balance_key(&addr_hex_to_bytes(&sender_addr));
+    let balance_key = compute_balance_key(sender_addr.as_ref());
     let balance_index = key_to_index(balance_key);
     let balance_merkle_proof = tree.get_leaf(balance_index);
     let balance = balance_merkle_proof.clone().value;
@@ -172,8 +173,8 @@ fn mock_user_op_smt(mut tree: ZeroMerkleTree) -> (MerkleProof, DeltaMerkleProof,
         "init balance (should be 1ETH, 0xde0b6b3a7640000): {}",
         balance
     );
-    let chain_id = user_operation.chain_id;
-    let nonce_key = compute_nonce_key(&addr_hex_to_bytes(&sender_addr), chain_id);
+    let chain_id = user_operation.chainId;
+    let nonce_key = compute_nonce_key(sender_addr.as_ref(), U64::from(chain_id));
     let nonce_index = key_to_index(nonce_key);
     let nonce_merkle_proof = tree.get_leaf(nonce_index);
     let nonce = nonce_merkle_proof.clone().value;
@@ -182,12 +183,12 @@ fn mock_user_op_smt(mut tree: ZeroMerkleTree) -> (MerkleProof, DeltaMerkleProof,
     // here, we compute the balance and nonce outside the zk program
     // the balance&nonce computation here must align with that in the program
     // nonce could be computed by userOp or by smt tree, we use only smt tree here, and use both userOp and tree in zk program
-    let total_gas = user_operation.call_gas_limit
-        + user_operation.verification_gas_limit
-        + user_operation.pre_verification_gas;
-    let total_gas_coeff = user_operation.max_fee_per_gas + user_operation.max_priority_fee_per_gas;
-    let new_balance = u128::from_str_radix(&balance, 16).unwrap() - total_gas * total_gas_coeff;
-    let new_nonce = u64::from_str_radix(&nonce, 16).unwrap() + 1;
+    let total_gas = user_operation.callGasLimit
+        + user_operation.verificationGasLimit
+        + user_operation.preVerificationGas;
+    let total_gas_coeff = user_operation.maxFeePerGas + user_operation.maxPriorityFeePerGas;
+    let new_balance = U256::from_str_radix(&balance, 16).unwrap() - total_gas * total_gas_coeff;
+    let new_nonce = U64::from_str_radix(&nonce, 16).unwrap() + U64::from(1);
 
     println!("new sender balance in script: {}", new_balance);
     println!("new sender nonce in script: {}", new_nonce);
@@ -195,6 +196,11 @@ fn mock_user_op_smt(mut tree: ZeroMerkleTree) -> (MerkleProof, DeltaMerkleProof,
     let new_bal_set_proof = tree.set_leaf(balance_index, format!("{:0>64x}", new_balance));
 
     let new_nonce_set_proof = tree.set_leaf(nonce_index, format!("{:0>64x}", new_nonce));
+    println!(
+        "formatted new sender balance in script: {:0>64x}",
+        new_balance
+    );
+    println!("formatted new sender nonce in script: {:0>64x}", new_nonce);
     println!("final smt root in script: {}", tree.get_root());
     (old_bal_get_proof, new_bal_set_proof, new_nonce_set_proof)
 }

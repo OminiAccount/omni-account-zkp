@@ -1,37 +1,34 @@
-use alloy::hex;
-use alloy_primitives::Address;
+use alloy::hex::{self, FromHex};
+use alloy_primitives::{Address, Bytes, U256, U64};
 use alloy_sol_types::SolStruct;
 use k256::ecdsa::{RecoveryId, Signature, SigningKey, VerifyingKey};
 use sha3::{Digest, Keccak256};
 
-use crate::{
-    conversions::hex_to_alloy_address,
-    types::{UserOperation, UserOperationRust},
-};
+use crate::{conversions::hex_to_alloy_address, types::UserOperation};
 
 pub fn create_mock_signed_user_operation(
     address: String,
     private_key_hex: &str,
     chain_id: u64,
-) -> (UserOperationRust, Signature, RecoveryId, VerifyingKey) {
+) -> (UserOperation, Signature, RecoveryId, VerifyingKey) {
     // we share chain_id and eth_addr between user_op and app domain for convenience
 
     let eth_address = hex_to_alloy_address(&address);
-    let user_op_rust = UserOperationRust {
-        sender: address,
-        nonce: 8,
-        chain_id,
-        init_code: vec![],
-        call_data: vec![],
-        call_gas_limit: 21000,
-        verification_gas_limit: 21000,
-        pre_verification_gas: 10000,
-        max_fee_per_gas: 20000000000u128,
-        max_priority_fee_per_gas: 1000000000u128,
-        paymaster_and_data: vec![],
+    let user_operation = UserOperation {
+        sender: eth_address,
+        nonce: U256::from_str_radix("8", 10).unwrap(),
+        chainId: chain_id, //U64::from(chain_id),
+        initCode: Bytes::from_hex("0x").unwrap(),
+        callData: Bytes::from_hex("0x").unwrap(),
+        callGasLimit: U256::from_str_radix("21000", 10).unwrap(),
+        verificationGasLimit: U256::from_str_radix("21000", 10).unwrap(),
+        preVerificationGas: U256::from_str_radix("10000", 10).unwrap(),
+        maxFeePerGas: U256::from_str_radix("20000000000", 10).unwrap(),
+        maxPriorityFeePerGas: U256::from_str_radix("1000000000", 10).unwrap(),
+        paymasterAndData: Bytes::from_hex("0x").unwrap(),
     };
 
-    let user_operation = user_op_rust.to_user_operation();
+    // let user_operation = user_op_rust.to_user_operation();
 
     let my_domain = alloy_sol_types::eip712_domain!(
         name: "ZK-AA",
@@ -46,6 +43,9 @@ pub fn create_mock_signed_user_operation(
     digest_input[2..34].copy_from_slice(&my_domain.hash_struct()[..]);
     digest_input[34..66].copy_from_slice(&user_operation.eip712_hash_struct()[..]);
 
+    // let digest_test = Keccak256::new_with_prefix(digest_input);
+    // let result = digest_test.finalize();
+    // println!("digest: {}", hex::encode(result));
     let digest = Keccak256::new_with_prefix(digest_input);
 
     let private_key_bytes = hex::decode(private_key_hex).expect("Invalid hex string");
@@ -59,9 +59,10 @@ pub fn create_mock_signed_user_operation(
 
     let (sig, recid) = signing_key.sign_digest_recoverable(digest.clone()).unwrap();
 
+    // println!("signature: {}", sig.clone());
     let verifying_key = VerifyingKey::recover_from_digest(digest.clone(), &sig, recid).unwrap();
 
-    (user_op_rust, sig, recid, verifying_key)
+    (user_operation, sig, recid, verifying_key)
 }
 
 pub fn recover_public_key_from_userop_signature(
@@ -108,7 +109,7 @@ mod tests {
             create_mock_signed_user_operation(hex_address.to_string(), private_key_hex, chain_id);
 
         let verifying_key = recover_public_key_from_userop_signature(
-            user_operation.to_user_operation(),
+            user_operation,
             chain_id,
             eth_address,
             sig,

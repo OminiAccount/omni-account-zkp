@@ -3,15 +3,13 @@
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
-use std::ops::Add;
-
 use alloy::hex;
-use alloy_primitives::Address;
+use alloy_primitives::{Address, U256, U64};
 use alloy_sol_types::SolType;
 use k256::ecdsa::{RecoveryId, Signature};
 use omni_account_lib::{
     conversions::{addr_hex_to_bytes, hex_to_alloy_address, verifying_key_to_ethereum_address},
-    types::{ProofInputs, ProofOutputs, UserOperation, UserOperationRust},
+    types::{ProofInputs, ProofOutputs, UserOperation},
     user_operation::recover_public_key_from_userop_signature,
     zero_smt::{
         key::{compute_balance_key, compute_nonce_key, key_to_index},
@@ -29,18 +27,18 @@ pub fn main() {
     let delta_merkle_proof = sp1_zkvm::io::read::<DeltaMerkleProof>();
     let delta_merkle_proof_nonce = sp1_zkvm::io::read::<DeltaMerkleProof>();
 
-    let user_op_rust = proof_inputs.user_operation;
+    let user_op = proof_inputs.user_operation;
     let sig_bytes = proof_inputs.sig_bytes;
     let recovery_id_byte = proof_inputs.eth_reconvery_id;
     let domain_chain_id = proof_inputs.domain_info.domain_chain_id;
     let domain_contract_addr_bytes = proof_inputs.domain_info.domain_contract_addr_bytes;
 
-    let user_op = user_op_rust.to_user_operation();
+    // let user_op = user_op_rust.to_user_operation();
 
     let user_addr = recover_eip712_userop_signature(
         sig_bytes,
         recovery_id_byte,
-        user_op,
+        user_op.clone(),
         domain_contract_addr_bytes,
         domain_chain_id,
     );
@@ -50,10 +48,10 @@ pub fn main() {
     let mut current_smt_root = old_smt_root;
 
     current_smt_root =
-        update_balance_smt_by_userop(delta_merkle_proof, user_op_rust.clone(), current_smt_root);
+        update_balance_smt_by_userop(delta_merkle_proof, user_op.clone(), current_smt_root);
 
     current_smt_root =
-        update_nonce_smt_by_userop(delta_merkle_proof_nonce, user_op_rust, current_smt_root);
+        update_nonce_smt_by_userop(delta_merkle_proof_nonce, user_op, current_smt_root);
     println!("final smt root in zk program: {}", current_smt_root.clone());
     let new_smt_root: [u8; 32] = hex::decode(current_smt_root).unwrap().try_into().unwrap();
     let output_bytes = ProofOutputs::abi_encode(&ProofOutputs {
@@ -106,9 +104,9 @@ fn recover_eip712_userop_signature(
 // update smt in circuit, return the new smt root
 fn update_nonce_smt(
     delta_proof: DeltaMerkleProof,
-    userop_sender: String,
-    userop_nonce: u64,
-    userop_chainid: u64,
+    userop_sender: Address,
+    userop_nonce: U256,
+    userop_chainid: U64,
     current_smt_root: String,
 ) -> String {
     assert!(
@@ -119,44 +117,54 @@ fn update_nonce_smt(
         current_smt_root == delta_proof.old_root,
         "Mismatch Delta Merkle Proof!"
     );
+
     // we know the smt is updated at index from old value to new value
     // we need to ensure that the index is the sender nonce index and the old value is userop_nonce - 1, new value is userop_nonce
-    let nonce_key = compute_nonce_key(&addr_hex_to_bytes(&userop_sender), userop_chainid);
+    let nonce_key = compute_nonce_key(userop_sender.as_ref(), userop_chainid);
     assert_eq!(delta_proof.index, key_to_index(nonce_key));
     assert_eq!(
-        u64::from_str_radix(&delta_proof.old_value, 16).unwrap(),
-        userop_nonce - 1
+        U256::from_str_radix(&delta_proof.old_value, 16).unwrap(),
+        userop_nonce - U256::from(1)
     );
     assert_eq!(
-        u64::from_str_radix(&delta_proof.new_value, 16).unwrap(),
+        U256::from_str_radix(&delta_proof.new_value, 16).unwrap(),
         userop_nonce
     );
 
-    println!("old sender nonce in zk program: {}", userop_nonce - 1);
+    println!(
+        "old sender nonce in zk program: {}",
+        userop_nonce - U256::from(1)
+    );
     println!("new sender nonce in zk program: {}", userop_nonce);
     delta_proof.new_root
 }
 
 fn update_nonce_smt_by_userop(
     delta_proof: DeltaMerkleProof,
-    user_op: UserOperationRust,
+    user_op: UserOperation,
     current_smt_root: String,
 ) -> String {
     let sender = user_op.sender;
     let nonce = user_op.nonce;
-    let chain_id = user_op.chain_id;
-    update_nonce_smt(delta_proof, sender, nonce, chain_id, current_smt_root)
+    let chain_id = user_op.chainId;
+    update_nonce_smt(
+        delta_proof,
+        sender,
+        nonce,
+        U64::from(chain_id),
+        current_smt_root,
+    )
 }
 // update smt in circuit, return the new smt root
 #[allow(clippy::too_many_arguments)]
 fn update_balance_smt(
     delta_proof: DeltaMerkleProof,
-    userop_sender: String,
-    call_gas_limit: u128,
-    verification_gas_limit: u128,
-    pre_verification_gas: u128,
-    max_fee_per_gas: u128,
-    max_priority_fee_per_gas: u128,
+    userop_sender: Address,
+    call_gas_limit: U256,
+    verification_gas_limit: U256,
+    pre_verification_gas: U256,
+    max_fee_per_gas: U256,
+    max_priority_fee_per_gas: U256,
     current_smt_root: String,
 ) -> String {
     assert!(
@@ -169,16 +177,16 @@ fn update_balance_smt(
     );
     // we know the smt is updated at index from old value to new value
     // we need to ensure that the index is the sender balance index and the old value is the old balance, new value is the new balance
-    let balance_key = compute_balance_key(&addr_hex_to_bytes(&userop_sender));
+    let balance_key = compute_balance_key(userop_sender.as_ref());
     assert_eq!(delta_proof.index, key_to_index(balance_key));
     let old_balance = delta_proof.old_value;
     println!("old sender balance in zk program: {}", old_balance);
     let total_gas = call_gas_limit + verification_gas_limit + pre_verification_gas;
     let total_gas_coeff = max_fee_per_gas + max_priority_fee_per_gas;
-    let new_balance = u128::from_str_radix(&old_balance, 16).unwrap() - total_gas * total_gas_coeff;
+    let new_balance = U256::from_str_radix(&old_balance, 16).unwrap() - total_gas * total_gas_coeff;
 
     assert_eq!(
-        u128::from_str_radix(&delta_proof.new_value, 16).unwrap(),
+        U256::from_str_radix(&delta_proof.new_value, 16).unwrap(),
         new_balance
     );
 
@@ -189,15 +197,15 @@ fn update_balance_smt(
 
 fn update_balance_smt_by_userop(
     delta_proof: DeltaMerkleProof,
-    user_op: UserOperationRust,
+    user_op: UserOperation,
     current_smt_root: String,
 ) -> String {
     let sender = user_op.sender;
-    let call_gas_limit = user_op.call_gas_limit;
-    let verification_gas_limit = user_op.verification_gas_limit;
-    let pre_verification_gas = user_op.pre_verification_gas;
-    let max_fee_per_gas = user_op.max_fee_per_gas;
-    let max_priority_fee_per_gas = user_op.max_priority_fee_per_gas;
+    let call_gas_limit = user_op.callGasLimit;
+    let verification_gas_limit = user_op.verificationGasLimit;
+    let pre_verification_gas = user_op.preVerificationGas;
+    let max_fee_per_gas = user_op.maxFeePerGas;
+    let max_priority_fee_per_gas = user_op.maxPriorityFeePerGas;
     update_balance_smt(
         delta_proof,
         sender,
