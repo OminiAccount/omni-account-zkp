@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 
 use alloy::hex;
+use alloy_primitives::{Address, U256};
 use sp1_sdk::{HashableKey, ProverClient, SP1ProofWithPublicValues, SP1Stdin, SP1VerifyingKey};
 
 const ELF: &[u8] = include_bytes!("../../program/elf/riscv32im-succinct-zkvm-elf");
@@ -21,7 +22,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SP1ProofFixture {
-    user_addr: Vec<u8>,
+    user_addr: Vec<Address>,
     vkey: String,
     public_values: String,
     proof: String,
@@ -42,8 +43,12 @@ fn main() {
     let private_key_hex = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
     let chain_id = 42161;
     let sender = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-    let (user_op, sig, reconvery_id, verifying_key) =
-        create_mock_signed_user_operation(sender.to_string(), private_key_hex, chain_id);
+    let (user_op, sig, reconvery_id, verifying_key) = create_mock_signed_user_operation(
+        sender.to_string(),
+        private_key_hex,
+        chain_id,
+        U256::from(8),
+    );
     // sig_bytes is 64 bytes
     let sig_bytes = sig.to_bytes().to_vec();
 
@@ -51,10 +56,14 @@ fn main() {
     // ecdsa gives us 0 or 1. Convert it into eth recovery id since the program handle eth rid
     let eth_reconvery_id = recovery_id_byte + 27;
     let proof_inputs = ProofInputs {
-        user_operation: user_op,
-        sig_bytes,
-        eth_reconvery_id,
-        domain_info,
+        // user_operation: user_op,
+        // sig_bytes,
+        // eth_reconvery_id,
+        // domain_info,
+        // balance_delta_proof: todo!(),
+        // nonce_delta_proof: todo!(),
+        old_smt_root: todo!(),
+        userop_inputs: todo!(),
     };
     stdin.write(&proof_inputs);
 
@@ -92,15 +101,15 @@ fn create_plonk_fixture(proof: &SP1ProofWithPublicValues, vk: &SP1VerifyingKey) 
 
     let output_bytes = proof.public_values.as_slice();
     let ProofOutputs {
-        user_addr,
+        user_addrs,
         new_smt_root,
     } = ProofOutputs::abi_decode(output_bytes, false).unwrap();
-    println!(
-        "abi decoded user address: {:?}",
-        user_addr.to_checksum(None)
-    );
+    // println!(
+    //     "abi decoded user address: {:?}",
+    //     user_addrs.to_checksum(None)
+    // );
     println!("abi decoded new_smt_root: {:?}", hex::encode(new_smt_root));
-    let user_addr_bytes = user_addr.to_vec();
+    let user_addr_bytes = user_addrs.to_vec();
 
     // Create the testing fixture so we can test things end-to-end.
     let fixture = SP1ProofFixture {

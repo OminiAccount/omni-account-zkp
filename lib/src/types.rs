@@ -2,7 +2,10 @@ use alloy_primitives::U256;
 use alloy_sol_types::sol;
 use serde::{Deserialize, Serialize};
 
-use crate::conversions::hex_to_alloy_address;
+use crate::{
+    conversions::hex_to_alloy_address,
+    zero_smt::smt::{DeltaMerkleProof, MerkleNodeValue},
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProverWitness {
@@ -39,16 +42,24 @@ pub struct DomainInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProofInputs {
+    pub userop_inputs: Vec<UserOpInput>,
+    pub old_smt_root: MerkleNodeValue,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserOpInput {
     pub user_operation: UserOperation,
     pub sig_bytes: Vec<u8>,
     pub eth_reconvery_id: u8,
     pub domain_info: DomainInfo,
+    pub balance_delta_proof: DeltaMerkleProof,
+    pub nonce_delta_proof: DeltaMerkleProof,
 }
 
 sol! {
     /// The public values encoded as a struct that can be easily deserialized inside Solidity.
     struct ProofOutputs {
-        address user_addr;
+        address[] user_addrs;
         bytes32 new_smt_root;
     }
 }

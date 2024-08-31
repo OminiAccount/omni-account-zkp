@@ -10,25 +10,23 @@ pub fn create_mock_signed_user_operation(
     address: String,
     private_key_hex: &str,
     chain_id: u64,
+    nonce: U256,
 ) -> (UserOperation, Signature, RecoveryId, VerifyingKey) {
     // we share chain_id and eth_addr between user_op and app domain for convenience
-
     let eth_address = hex_to_alloy_address(&address);
     let user_operation = UserOperation {
         sender: eth_address,
-        nonce: U256::from_str_radix("8", 10).unwrap(),
+        nonce,
         chainId: chain_id, //U64::from(chain_id),
         initCode: Bytes::from_hex("0x").unwrap(),
         callData: Bytes::from_hex("0x").unwrap(),
-        callGasLimit: U256::from_str_radix("21000", 10).unwrap(),
-        verificationGasLimit: U256::from_str_radix("21000", 10).unwrap(),
+        callGasLimit: U256::from_str_radix("20000", 10).unwrap(),
+        verificationGasLimit: U256::from_str_radix("20000", 10).unwrap(),
         preVerificationGas: U256::from_str_radix("10000", 10).unwrap(),
         maxFeePerGas: U256::from_str_radix("20000000000", 10).unwrap(),
-        maxPriorityFeePerGas: U256::from_str_radix("1000000000", 10).unwrap(),
+        maxPriorityFeePerGas: U256::from_str_radix("0", 10).unwrap(),
         paymasterAndData: Bytes::from_hex("0x").unwrap(),
     };
-
-    // let user_operation = user_op_rust.to_user_operation();
 
     let my_domain = alloy_sol_types::eip712_domain!(
         name: "ZK-AA",
@@ -106,7 +104,12 @@ mod tests {
         let chain_id = 42161;
 
         let (user_operation, sig, recid, expected_verifying_key) =
-            create_mock_signed_user_operation(hex_address.to_string(), private_key_hex, chain_id);
+            create_mock_signed_user_operation(
+                hex_address.to_string(),
+                private_key_hex,
+                chain_id,
+                U256::from(8),
+            );
 
         let verifying_key = recover_public_key_from_userop_signature(
             user_operation,

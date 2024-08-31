@@ -7,7 +7,7 @@ const ELF: &[u8] = include_bytes!("../../program/elf/riscv32im-succinct-zkvm-elf
 
 use omni_account_lib::{
     conversions::{addr_hex_to_bytes, hex_to_alloy_address},
-    types::{DomainInfo, ProofInputs, ProofOutputs},
+    types::{DomainInfo, ProofInputs, ProofOutputs, UserOpInput, UserOperation},
     user_operation::create_mock_signed_user_operation,
     zero_smt::{
         key::{compute_balance_key, compute_nonce_key, key_to_index},
@@ -35,31 +35,18 @@ fn main() {
     let private_key_hex = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
     let chain_id = 42161;
     let sender = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-    let (user_op, sig, reconvery_id, verifying_key) =
-        create_mock_signed_user_operation(sender.to_string(), private_key_hex, chain_id);
-    // sig_bytes is 64 bytes
-    let sig_bytes = sig.to_bytes().to_vec();
 
-    let recovery_id_byte = reconvery_id.to_byte();
-    // ecdsa gives us 0 or 1. Convert it into eth recovery id since the program handle eth rid
-    let eth_reconvery_id = recovery_id_byte + 27;
-    let proof_inputs = ProofInputs {
-        user_operation: user_op,
-        sig_bytes,
-        eth_reconvery_id,
-        domain_info,
-    };
-    stdin.write(&proof_inputs);
-
-    // mock smt input write
     let smt = prepare_mock_user_smt();
     let old_smt_root = smt.get_root();
-    println!("old smt root in script: {}", old_smt_root);
-    let (old_bal_get_proof, new_bal_set_proof, new_nonce_set_proof) = mock_user_op_smt(smt);
-    stdin.write(&old_smt_root);
-    stdin.write(&old_bal_get_proof);
-    stdin.write(&new_bal_set_proof);
-    stdin.write(&new_nonce_set_proof);
+    println!("Initial smt root in script: {}", old_smt_root);
+    let userop_inputs =
+        create_mock_userop_inputs(sender, private_key_hex, chain_id, 5, domain_info, smt);
+    let proof_inputs = ProofInputs {
+        userop_inputs,
+        old_smt_root,
+    };
+
+    stdin.write(&proof_inputs);
 
     let client = ProverClient::new();
     let (pk, vk) = client.setup(ELF);
@@ -76,11 +63,53 @@ fn main() {
 
     let output_bytes = proof.public_values.as_slice();
     let ProofOutputs {
-        user_addr,
+        user_addrs,
         new_smt_root,
     } = ProofOutputs::abi_decode(output_bytes, false).unwrap();
-    println!("abi decoded Public Values: {:?}", user_addr);
+    println!("abi decoded Public Values: {:?}", user_addrs);
     println!("abi decoded new_smt_root: {:?}", new_smt_root);
+}
+
+fn create_mock_userop_inputs(
+    sender: &str,
+    private_key_hex: &str,
+    chain_id: u64,
+    user_op_count: usize,
+    domain_info: DomainInfo,
+    mut smt: ZeroMerkleTree,
+) -> Vec<UserOpInput> {
+    let mut userop_inputs = Vec::new();
+
+    for i in 0..user_op_count {
+        let (user_op, sig, reconvery_id, verifying_key) = create_mock_signed_user_operation(
+            sender.to_string(),
+            private_key_hex,
+            chain_id,
+            U256::from(i + 8),
+        );
+        // sig_bytes is 64 bytes
+        let sig_bytes = sig.to_bytes().to_vec();
+
+        let recovery_id_byte = reconvery_id.to_byte();
+        // ecdsa gives us 0 or 1. Convert it into eth recovery id since the program handle eth rid
+        let eth_reconvery_id = recovery_id_byte + 27;
+
+        let (updated_smt, new_bal_set_proof, new_nonce_set_proof) =
+            mock_user_op_smt(smt, user_op.clone());
+
+        smt = updated_smt;
+
+        let userop_input = UserOpInput {
+            user_operation: user_op,
+            sig_bytes,
+            eth_reconvery_id,
+            domain_info: domain_info.clone(),
+            balance_delta_proof: new_bal_set_proof.clone(),
+            nonce_delta_proof: new_nonce_set_proof.clone(),
+        };
+        userop_inputs.push(userop_input);
+    }
+    userop_inputs
 }
 
 fn prepare_mock_smt() -> (MerkleNodeValue, MerkleProof, DeltaMerkleProof) {
@@ -154,31 +183,22 @@ fn prepare_mock_user_smt() -> (ZeroMerkleTree) {
     tree
 }
 
-fn mock_user_op_smt(mut tree: ZeroMerkleTree) -> (MerkleProof, DeltaMerkleProof, DeltaMerkleProof) {
-    let hex_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-    let eth_address = hex_to_alloy_address(hex_address);
-    let private_key_hex = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-    let chain_id = 42161;
-
-    // Note the nonce in the mock msg must be 8, which is 1 + current nonce in tree
-    let (user_operation, sig, recid, expected_verifying_key) =
-        create_mock_signed_user_operation(hex_address.to_string(), private_key_hex, chain_id);
-
+fn mock_user_op_smt(
+    mut tree: ZeroMerkleTree,
+    user_operation: UserOperation,
+) -> (ZeroMerkleTree, DeltaMerkleProof, DeltaMerkleProof) {
     let sender_addr = user_operation.sender;
     let balance_key = compute_balance_key(sender_addr.as_ref());
     let balance_index = key_to_index(balance_key);
     let balance_merkle_proof = tree.get_leaf(balance_index);
     let balance = balance_merkle_proof.clone().value;
-    println!(
-        "init balance (should be 1ETH, 0xde0b6b3a7640000): {}",
-        balance
-    );
+    println!("old balance before userOp in script: {}", balance);
     let chain_id = user_operation.chainId;
     let nonce_key = compute_nonce_key(sender_addr.as_ref(), U64::from(chain_id));
     let nonce_index = key_to_index(nonce_key);
     let nonce_merkle_proof = tree.get_leaf(nonce_index);
     let nonce = nonce_merkle_proof.clone().value;
-    println!("init nonce (should be 7): {}", nonce);
+    println!("old nonce before userOp in script: {}", nonce);
 
     // here, we compute the balance and nonce outside the zk program
     // the balance&nonce computation here must align with that in the program
@@ -190,9 +210,8 @@ fn mock_user_op_smt(mut tree: ZeroMerkleTree) -> (MerkleProof, DeltaMerkleProof,
     let new_balance = U256::from_str_radix(&balance, 16).unwrap() - total_gas * total_gas_coeff;
     let new_nonce = U64::from_str_radix(&nonce, 16).unwrap() + U64::from(1);
 
-    println!("new sender balance in script: {}", new_balance);
-    println!("new sender nonce in script: {}", new_nonce);
-    let old_bal_get_proof = tree.get_leaf(balance_index);
+    println!("new sender balance after userOp in script: {}", new_balance);
+    println!("new sender nonce after userOp in script: {}", new_nonce);
     let new_bal_set_proof = tree.set_leaf(balance_index, format!("{:0>64x}", new_balance));
 
     let new_nonce_set_proof = tree.set_leaf(nonce_index, format!("{:0>64x}", new_nonce));
@@ -201,6 +220,6 @@ fn mock_user_op_smt(mut tree: ZeroMerkleTree) -> (MerkleProof, DeltaMerkleProof,
         new_balance
     );
     println!("formatted new sender nonce in script: {:0>64x}", new_nonce);
-    println!("final smt root in script: {}", tree.get_root());
-    (old_bal_get_proof, new_bal_set_proof, new_nonce_set_proof)
+    println!("new smt root in script: {}", tree.get_root());
+    (tree, new_bal_set_proof, new_nonce_set_proof)
 }

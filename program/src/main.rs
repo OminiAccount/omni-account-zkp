@@ -22,41 +22,54 @@ use omni_account_lib::{
 
 pub fn main() {
     let proof_inputs = sp1_zkvm::io::read::<ProofInputs>();
-    let old_smt_root = sp1_zkvm::io::read::<MerkleNodeValue>();
-    let merkle_proof = sp1_zkvm::io::read::<MerkleProof>();
-    let delta_merkle_proof = sp1_zkvm::io::read::<DeltaMerkleProof>();
-    let delta_merkle_proof_nonce = sp1_zkvm::io::read::<DeltaMerkleProof>();
+    let mut current_smt_root = proof_inputs.old_smt_root;
+    let userop_inputs = proof_inputs.userop_inputs;
+    let mut user_addrs = Vec::new();
 
-    let user_op = proof_inputs.user_operation;
-    let sig_bytes = proof_inputs.sig_bytes;
-    let recovery_id_byte = proof_inputs.eth_reconvery_id;
-    let domain_chain_id = proof_inputs.domain_info.domain_chain_id;
-    let domain_contract_addr_bytes = proof_inputs.domain_info.domain_contract_addr_bytes;
-
-    // let user_op = user_op_rust.to_user_operation();
-
-    let user_addr = recover_eip712_userop_signature(
-        sig_bytes,
-        recovery_id_byte,
-        user_op.clone(),
-        domain_contract_addr_bytes,
-        domain_chain_id,
+    println!(
+        "initial smt root in zk program: {}",
+        current_smt_root.clone()
     );
 
-    println!("old smt root in zk program: {}", old_smt_root.clone());
+    for userop_input in userop_inputs {
+        // let userop_input = proof_inputs.userop_input;
+        let balance_delta_proof = userop_input.balance_delta_proof;
+        let nonce_delta_proof = userop_input.nonce_delta_proof;
 
-    let mut current_smt_root = old_smt_root;
+        let user_op = userop_input.user_operation;
+        let sig_bytes = userop_input.sig_bytes;
+        let recovery_id_byte = userop_input.eth_reconvery_id;
+        let domain_chain_id = userop_input.domain_info.domain_chain_id;
+        let domain_contract_addr_bytes = userop_input.domain_info.domain_contract_addr_bytes;
 
-    current_smt_root =
-        update_balance_smt_by_userop(delta_merkle_proof, user_op.clone(), current_smt_root);
+        // let user_op = user_op_rust.to_user_operation();
 
-    current_smt_root =
-        update_nonce_smt_by_userop(delta_merkle_proof_nonce, user_op, current_smt_root);
-    println!("final smt root in zk program: {}", current_smt_root.clone());
-    let new_smt_root: [u8; 32] = hex::decode(current_smt_root).unwrap().try_into().unwrap();
+        let user_addr = recover_eip712_userop_signature(
+            sig_bytes,
+            recovery_id_byte,
+            user_op.clone(),
+            domain_contract_addr_bytes,
+            domain_chain_id,
+        );
+        user_addrs.push(user_addr);
+
+        current_smt_root =
+            update_balance_smt_by_userop(balance_delta_proof, user_op.clone(), current_smt_root);
+        println!(
+            "current smt root after balance update in zk program: {}",
+            current_smt_root.clone()
+        );
+
+        current_smt_root = update_nonce_smt_by_userop(nonce_delta_proof, user_op, current_smt_root);
+        println!(
+            "current smt root after nonce update in zk program: {}",
+            current_smt_root.clone()
+        );
+    }
+    let smt_root_bytes: [u8; 32] = hex::decode(current_smt_root).unwrap().try_into().unwrap();
     let output_bytes = ProofOutputs::abi_encode(&ProofOutputs {
-        user_addr,
-        new_smt_root: new_smt_root.into(),
+        user_addrs,
+        new_smt_root: smt_root_bytes.into(),
     });
 
     sp1_zkvm::io::commit_slice(&output_bytes);
@@ -180,7 +193,6 @@ fn update_balance_smt(
     let balance_key = compute_balance_key(userop_sender.as_ref());
     assert_eq!(delta_proof.index, key_to_index(balance_key));
     let old_balance = delta_proof.old_value;
-    println!("old sender balance in zk program: {}", old_balance);
     let total_gas = call_gas_limit
         .checked_add(verification_gas_limit)
         .expect("Add overflow")
