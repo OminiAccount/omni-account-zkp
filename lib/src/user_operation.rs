@@ -1,5 +1,5 @@
 use alloy::hex::{self, FromHex};
-use alloy_primitives::{Address, Bytes, U256, U64};
+use alloy_primitives::{Address, Bytes, U256};
 use alloy_sol_types::SolStruct;
 use k256::ecdsa::{RecoveryId, Signature, SigningKey, VerifyingKey};
 use sha3::{Digest, Keccak256};
@@ -94,7 +94,7 @@ pub fn recover_public_key_from_userop_signature(
 mod tests {
     use super::*;
     use crate::conversions::{hex_to_alloy_address, verifying_key_to_ethereum_address};
-    use k256::ecdsa::signature::DigestVerifier;
+    // use k256::ecdsa::signature::DigestVerifier;
 
     #[test]
     fn test_eip_712_sig() {

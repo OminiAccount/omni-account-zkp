@@ -64,6 +64,8 @@ fn main() {
         // nonce_delta_proof: todo!(),
         old_smt_root: todo!(),
         userop_inputs: todo!(),
+        d_ticket_inputs: todo!(),
+        w_ticket_inputs: todo!(),
     };
     stdin.write(&proof_inputs);
 
@@ -103,6 +105,8 @@ fn create_plonk_fixture(proof: &SP1ProofWithPublicValues, vk: &SP1VerifyingKey) 
     let ProofOutputs {
         user_addrs,
         new_smt_root,
+        d_ticket_hashes,
+        w_ticket_hashes,
     } = ProofOutputs::abi_decode(output_bytes, false).unwrap();
     // println!(
     //     "abi decoded user address: {:?}",

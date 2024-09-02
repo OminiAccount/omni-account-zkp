@@ -1,11 +1,9 @@
-use alloy_primitives::U256;
-use alloy_sol_types::sol;
+use alloy_sol_types::{sol, SolValue};
 use serde::{Deserialize, Serialize};
+use sha2::Digest;
+use sha3::Keccak256;
 
-use crate::{
-    conversions::hex_to_alloy_address,
-    zero_smt::smt::{DeltaMerkleProof, MerkleNodeValue},
-};
+use crate::zero_smt::smt::{DeltaMerkleProof, MerkleNodeValue};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProverWitness {
@@ -43,6 +41,8 @@ pub struct DomainInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProofInputs {
     pub userop_inputs: Vec<UserOpInput>,
+    pub d_ticket_inputs: Vec<TicketInput>,
+    pub w_ticket_inputs: Vec<TicketInput>,
     pub old_smt_root: MerkleNodeValue,
 }
 
@@ -61,5 +61,28 @@ sol! {
     struct ProofOutputs {
         address[] user_addrs;
         bytes32 new_smt_root;
+        bytes32[] d_ticket_hashes;
+        bytes32[] w_ticket_hashes;
     }
+}
+
+sol! {
+    #[derive(Debug, Serialize, Deserialize)]
+    struct Ticket {
+        address user;
+        uint256 amount;
+        uint256 timestamp;
+    }
+}
+impl Ticket {
+    pub fn hash(&self) -> [u8; 32] {
+        let encoded = self.abi_encode_packed();
+        Keccak256::digest(encoded).into()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TicketInput {
+    pub ticket: Ticket,
+    pub delta_proof: DeltaMerkleProof,
 }

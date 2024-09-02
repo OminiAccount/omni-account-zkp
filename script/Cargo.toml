@@ -23,3 +23,7 @@ sp1-helper = { git = "https://github.com/succinctlabs/sp1.git" }
 [[bin]]
 name = "plonk_bn254"
 path = "bin/plonk_bn254.rs"
+
+[[bin]]
+name = "mock_input_json"
+path = "bin/mock_input_json.rs"

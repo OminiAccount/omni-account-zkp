@@ -4,12 +4,12 @@
 sp1_zkvm::entrypoint!(main);
 
 use alloy::hex;
-use alloy_primitives::{Address, U256, U64};
+use alloy_primitives::{Address, FixedBytes, U256, U64};
 use alloy_sol_types::SolType;
 use k256::ecdsa::{RecoveryId, Signature};
 use omni_account_lib::{
     conversions::{addr_hex_to_bytes, hex_to_alloy_address, verifying_key_to_ethereum_address},
-    types::{ProofInputs, ProofOutputs, UserOperation},
+    types::{ProofInputs, ProofOutputs, Ticket, UserOperation},
     user_operation::recover_public_key_from_userop_signature,
     zero_smt::{
         key::{compute_balance_key, compute_nonce_key, key_to_index},
@@ -30,6 +30,28 @@ pub fn main() {
         "initial smt root in zk program: {}",
         current_smt_root.clone()
     );
+
+    // we will verify tickets onchain with two different mappings
+    // no need to verify it here, just execute tickets and wait for onchain verification
+    let mut d_ticket_hashes = Vec::new();
+    for d_ticket_input in proof_inputs.d_ticket_inputs {
+        current_smt_root = update_balance_smt_by_d_ticket(
+            d_ticket_input.delta_proof,
+            d_ticket_input.ticket.clone(),
+            current_smt_root,
+        );
+        d_ticket_hashes.push(FixedBytes::<32>::new(d_ticket_input.ticket.hash()));
+    }
+
+    let mut w_ticket_hashes = Vec::new();
+    for w_ticket_input in proof_inputs.w_ticket_inputs {
+        current_smt_root = update_balance_smt_by_w_ticket(
+            w_ticket_input.delta_proof,
+            w_ticket_input.ticket.clone(),
+            current_smt_root,
+        );
+        w_ticket_hashes.push(FixedBytes::<32>::new(w_ticket_input.ticket.hash()));
+    }
 
     for userop_input in userop_inputs {
         // let userop_input = proof_inputs.userop_input;
@@ -70,6 +92,8 @@ pub fn main() {
     let output_bytes = ProofOutputs::abi_encode(&ProofOutputs {
         user_addrs,
         new_smt_root: smt_root_bytes.into(),
+        d_ticket_hashes,
+        w_ticket_hashes,
     });
 
     sp1_zkvm::io::commit_slice(&output_bytes);
@@ -243,4 +267,80 @@ fn update_balance_smt_by_userop(
         max_priority_fee_per_gas,
         current_smt_root,
     )
+}
+
+fn update_balance_smt_by_d_ticket(
+    delta_proof: DeltaMerkleProof,
+    deposit_ticket: Ticket,
+    current_smt_root: String,
+) -> String {
+    assert!(
+        verify_delta_merkle_proof(delta_proof.clone()),
+        "Invalid Balance Delta Merkle Proof!"
+    );
+    assert!(
+        current_smt_root == delta_proof.old_root,
+        "Mismatch Delta Merkle Proof!"
+    );
+    // we know the smt is updated at index from old value to new value
+    // we need to ensure that the index is the ticket user balance index and the old value is the old balance, new value is the new balance
+    let balance_key = compute_balance_key(deposit_ticket.user.as_ref());
+    assert_eq!(delta_proof.index, key_to_index(balance_key));
+    let old_balance = U256::from_str_radix(&delta_proof.old_value, 16).unwrap();
+    let new_balance = old_balance
+        .checked_add(deposit_ticket.amount)
+        .expect("Add overflow");
+
+    assert_eq!(
+        U256::from_str_radix(&delta_proof.new_value, 16).unwrap(),
+        new_balance
+    );
+
+    println!(
+        "old user balance by d_ticket in zk program: {}",
+        old_balance
+    );
+    println!(
+        "new user balance by d_ticket in zk program: {}",
+        new_balance
+    );
+    delta_proof.new_root
+}
+
+fn update_balance_smt_by_w_ticket(
+    delta_proof: DeltaMerkleProof,
+    withdraw_ticket: Ticket,
+    current_smt_root: String,
+) -> String {
+    assert!(
+        verify_delta_merkle_proof(delta_proof.clone()),
+        "Invalid Balance Delta Merkle Proof!"
+    );
+    assert!(
+        current_smt_root == delta_proof.old_root,
+        "Mismatch Delta Merkle Proof!"
+    );
+    // we know the smt is updated at index from old value to new value
+    // we need to ensure that the index is the ticket user balance index and the old value is the old balance, new value is the new balance
+    let balance_key = compute_balance_key(withdraw_ticket.user.as_ref());
+    assert_eq!(delta_proof.index, key_to_index(balance_key));
+    let old_balance = U256::from_str_radix(&delta_proof.old_value, 16).unwrap();
+    let new_balance = old_balance
+        .checked_sub(withdraw_ticket.amount)
+        .expect("Sub overflow");
+
+    assert_eq!(
+        U256::from_str_radix(&delta_proof.new_value, 16).unwrap(),
+        new_balance
+    );
+
+    println!(
+        "old user balance by w_ticket in zk program: {}",
+        old_balance
+    );
+    println!(
+        "new user balance by w_ticket in zk program: {}",
+        new_balance
+    );
+    delta_proof.new_root
 }
