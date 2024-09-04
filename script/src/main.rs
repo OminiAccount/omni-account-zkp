@@ -35,12 +35,14 @@ fn main() {
 
     let output_bytes = proof.public_values.as_slice();
     let ProofOutputs {
+        user_ops,
         user_addrs,
         new_smt_root,
         d_ticket_hashes,
         w_ticket_hashes,
     } = ProofOutputs::abi_decode(output_bytes, false).unwrap();
-    println!("abi decoded Public Values: {:?}", user_addrs);
+    println!("Packed UserOps: {:?}", user_ops);
+    println!("abi decoded Sig User Address: {:?}", user_addrs);
     println!("abi decoded new_smt_root: {:?}", new_smt_root);
     println!("abi decoded d_ticket_hashes: {:?}", d_ticket_hashes);
     println!("abi decoded w_ticket_hashes: {:?}", w_ticket_hashes);

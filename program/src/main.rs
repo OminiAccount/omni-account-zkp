@@ -9,7 +9,7 @@ use alloy_sol_types::SolType;
 use k256::ecdsa::{RecoveryId, Signature};
 use omni_account_lib::{
     conversions::{addr_hex_to_bytes, hex_to_alloy_address, verifying_key_to_ethereum_address},
-    types::{ProofInputs, ProofOutputs, Ticket, UserOperation},
+    types::{PackedUserOperation, ProofInputs, ProofOutputs, Ticket, UserOperation},
     user_operation::recover_public_key_from_userop_signature,
     zero_smt::{
         key::{compute_balance_key, compute_nonce_key, key_to_index},
@@ -25,6 +25,7 @@ pub fn main() {
     let mut current_smt_root = proof_inputs.old_smt_root;
     let userop_inputs = proof_inputs.userop_inputs;
     let mut user_addrs = Vec::new();
+    let mut packed_userops = Vec::new();
 
     println!(
         "initial smt root in zk program: {}",
@@ -55,6 +56,8 @@ pub fn main() {
 
     for userop_input in userop_inputs {
         // let userop_input = proof_inputs.userop_input;
+        let packed_userop: PackedUserOperation = userop_input.user_operation.clone().into();
+        packed_userops.push(packed_userop);
         let balance_delta_proof = userop_input.balance_delta_proof;
         let nonce_delta_proof = userop_input.nonce_delta_proof;
 
@@ -90,6 +93,7 @@ pub fn main() {
     }
     let smt_root_bytes: [u8; 32] = hex::decode(current_smt_root).unwrap().try_into().unwrap();
     let output_bytes = ProofOutputs::abi_encode(&ProofOutputs {
+        user_ops: packed_userops,
         user_addrs,
         new_smt_root: smt_root_bytes.into(),
         d_ticket_hashes,

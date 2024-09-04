@@ -1,8 +1,7 @@
 pub mod conversions;
-pub mod zero_smt;
-// pub mod smt;
 pub mod types;
 pub mod user_operation;
+pub mod zero_smt;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
