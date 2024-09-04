@@ -1,4 +1,4 @@
-use alloy_primitives::{FixedBytes, U256};
+use alloy_primitives::{Address, FixedBytes, U256};
 use alloy_sol_types::{sol, SolValue};
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
@@ -39,14 +39,14 @@ sol! {
     #[derive(Debug, Serialize, Deserialize)]
     struct PackedUserOperation {
         address sender;
-        uint256 nonce;
-        uint64 chainId;
+        uint256 chainId;
         bytes initCode;
         bytes callData;
         bytes32 accountGasLimits;
         uint256 preVerificationGas;
         bytes32 gasFees;
         bytes paymasterAndData;
+        address userAddr;
     }
 }
 
@@ -60,21 +60,21 @@ fn pack_uints(high128: U256, low128: U256) -> FixedBytes<32> {
     FixedBytes::<32>::from(packed)
 }
 
-impl From<UserOperation> for PackedUserOperation {
-    fn from(user_op: UserOperation) -> Self {
+impl PackedUserOperation {
+    pub fn new(user_op: UserOperation, user_addr: Address) -> Self {
         let account_gas_limits = pack_uints(user_op.verificationGasLimit, user_op.callGasLimit);
         let gas_fees = pack_uints(user_op.maxFeePerGas, user_op.maxPriorityFeePerGas);
 
         PackedUserOperation {
             sender: user_op.sender,
-            nonce: user_op.nonce,
-            chainId: user_op.chainId,
+            chainId: U256::from(user_op.chainId),
             initCode: user_op.initCode,
             callData: user_op.callData,
             accountGasLimits: account_gas_limits,
             preVerificationGas: user_op.preVerificationGas,
             gasFees: gas_fees,
             paymasterAndData: user_op.paymasterAndData,
+            userAddr: user_addr,
         }
     }
 }
@@ -107,7 +107,6 @@ sol! {
     /// The public values encoded as a struct that can be easily deserialized inside Solidity.
     struct ProofOutputs {
         PackedUserOperation[] user_ops;
-        address[] user_addrs;
         bytes32 new_smt_root;
         Ticket[] d_tickets;
         Ticket[] w_tickets;
@@ -135,35 +134,35 @@ pub struct TicketInput {
     pub delta_proof: DeltaMerkleProof,
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::conversions::hex_to_alloy_address;
+// #[cfg(test)]
+// mod tests {
+//     use crate::conversions::hex_to_alloy_address;
 
-    use super::*;
-    use alloy::hex::FromHex;
-    use alloy_primitives::{Bytes, U256};
+//     use super::*;
+//     use alloy::hex::FromHex;
+//     use alloy_primitives::{Bytes, U256};
 
-    #[test]
-    fn test_packed_user_operation_from_user_operation() {
-        let eth_address = hex_to_alloy_address("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
-        let user_op = UserOperation {
-            sender: eth_address,
-            nonce: U256::from(1),
-            chainId: 42161u64,
-            initCode: Bytes::from_hex("0x").unwrap(),
-            callData: Bytes::from_hex("0x").unwrap(),
-            callGasLimit: U256::from_str_radix("20000", 10).unwrap(),
-            verificationGasLimit: U256::from_str_radix("20000", 10).unwrap(),
-            preVerificationGas: U256::from_str_radix("10000", 10).unwrap(),
-            maxFeePerGas: U256::from_str_radix("20000000000", 10).unwrap(),
-            maxPriorityFeePerGas: U256::from_str_radix("0", 10).unwrap(),
-            paymasterAndData: Bytes::from_hex("0x").unwrap(),
-        };
+//     #[test]
+//     fn test_packed_user_operation_from_user_operation() {
+//         let eth_address = hex_to_alloy_address("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+//         let user_op = UserOperation {
+//             sender: eth_address,
+//             nonce: U256::from(1),
+//             chainId: 42161u64,
+//             initCode: Bytes::from_hex("0x").unwrap(),
+//             callData: Bytes::from_hex("0x").unwrap(),
+//             callGasLimit: U256::from_str_radix("20000", 10).unwrap(),
+//             verificationGasLimit: U256::from_str_radix("20000", 10).unwrap(),
+//             preVerificationGas: U256::from_str_radix("10000", 10).unwrap(),
+//             maxFeePerGas: U256::from_str_radix("20000000000", 10).unwrap(),
+//             maxPriorityFeePerGas: U256::from_str_radix("0", 10).unwrap(),
+//             paymasterAndData: Bytes::from_hex("0x").unwrap(),
+//         };
 
-        let packed_user_op: PackedUserOperation = user_op.clone().into();
+//         let packed_user_op: PackedUserOperation = user_op.clone().into();
 
-        println!("user_op: {:?}", user_op);
+//         println!("user_op: {:?}", user_op);
 
-        println!("packed_user_op: {:?}", packed_user_op);
-    }
-}
+//         println!("packed_user_op: {:?}", packed_user_op);
+//     }
+// }

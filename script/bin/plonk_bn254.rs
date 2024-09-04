@@ -19,7 +19,6 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 struct SP1ProofFixture {
     user_ops: Vec<PackedUserOperation>,
-    user_addrs: Vec<Address>,
     new_smt_root: FixedBytes<32>,
     d_tickets: Vec<Ticket>,
     w_tickets: Vec<Ticket>,
@@ -73,7 +72,6 @@ fn create_plonk_fixture(proof: &SP1ProofWithPublicValues, vk: &SP1VerifyingKey) 
     let output_bytes = proof.public_values.as_slice();
     let ProofOutputs {
         user_ops,
-        user_addrs,
         new_smt_root,
         d_tickets,
         w_tickets,
@@ -88,7 +86,6 @@ fn create_plonk_fixture(proof: &SP1ProofWithPublicValues, vk: &SP1VerifyingKey) 
     // Create the testing fixture so we can test things end-to-end.
     let fixture = SP1ProofFixture {
         user_ops,
-        user_addrs,
         new_smt_root,
         d_tickets,
         w_tickets,

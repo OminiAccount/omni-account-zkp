@@ -24,7 +24,6 @@ pub fn main() {
     let proof_inputs = sp1_zkvm::io::read::<ProofInputs>();
     let mut current_smt_root = proof_inputs.old_smt_root;
     let userop_inputs = proof_inputs.userop_inputs;
-    let mut user_addrs = Vec::new();
     let mut packed_userops = Vec::new();
 
     println!(
@@ -56,8 +55,6 @@ pub fn main() {
 
     for userop_input in userop_inputs {
         // let userop_input = proof_inputs.userop_input;
-        let packed_userop: PackedUserOperation = userop_input.user_operation.clone().into();
-        packed_userops.push(packed_userop);
         let balance_delta_proof = userop_input.balance_delta_proof;
         let nonce_delta_proof = userop_input.nonce_delta_proof;
 
@@ -76,7 +73,8 @@ pub fn main() {
             domain_contract_addr_bytes,
             domain_chain_id,
         );
-        user_addrs.push(user_addr);
+        let packed_userop = PackedUserOperation::new(user_op.clone(), user_addr);
+        packed_userops.push(packed_userop);
 
         current_smt_root =
             update_balance_smt_by_userop(balance_delta_proof, user_op.clone(), current_smt_root);
@@ -94,7 +92,6 @@ pub fn main() {
     let smt_root_bytes: [u8; 32] = hex::decode(current_smt_root).unwrap().try_into().unwrap();
     let output_bytes = ProofOutputs::abi_encode(&ProofOutputs {
         user_ops: packed_userops,
-        user_addrs,
         new_smt_root: smt_root_bytes.into(),
         d_tickets,
         w_tickets,
