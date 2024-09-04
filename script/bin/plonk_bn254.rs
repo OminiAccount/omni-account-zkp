@@ -8,7 +8,7 @@ use sp1_sdk::{HashableKey, ProverClient, SP1ProofWithPublicValues, SP1Stdin, SP1
 
 const ELF: &[u8] = include_bytes!("../../program/elf/riscv32im-succinct-zkvm-elf");
 
-use omni_account_lib::types::{PackedUserOperation, ProofInputs, ProofOutputs};
+use omni_account_lib::types::{PackedUserOperation, ProofInputs, ProofOutputs, Ticket};
 
 use alloy_sol_types::SolType;
 
@@ -21,8 +21,8 @@ struct SP1ProofFixture {
     user_ops: Vec<PackedUserOperation>,
     user_addrs: Vec<Address>,
     new_smt_root: FixedBytes<32>,
-    d_ticket_hashes: Vec<FixedBytes<32>>,
-    w_ticket_hashes: Vec<FixedBytes<32>>,
+    d_tickets: Vec<Ticket>,
+    w_tickets: Vec<Ticket>,
     vkey: String,
     public_values: String,
     proof: String,
@@ -75,8 +75,8 @@ fn create_plonk_fixture(proof: &SP1ProofWithPublicValues, vk: &SP1VerifyingKey) 
         user_ops,
         user_addrs,
         new_smt_root,
-        d_ticket_hashes,
-        w_ticket_hashes,
+        d_tickets,
+        w_tickets,
     } = ProofOutputs::abi_decode(output_bytes, false).unwrap();
     // println!(
     //     "abi decoded user address: {:?}",
@@ -90,8 +90,8 @@ fn create_plonk_fixture(proof: &SP1ProofWithPublicValues, vk: &SP1VerifyingKey) 
         user_ops,
         user_addrs,
         new_smt_root,
-        d_ticket_hashes,
-        w_ticket_hashes,
+        d_tickets,
+        w_tickets,
         vkey: vk.bytes32().to_string(),
         public_values: format!("0x{}", hex::encode(output_bytes)),
         proof: format!("0x{}", hex::encode(proof.bytes())),

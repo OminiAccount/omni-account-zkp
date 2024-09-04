@@ -38,14 +38,14 @@ fn main() {
         user_ops,
         user_addrs,
         new_smt_root,
-        d_ticket_hashes,
-        w_ticket_hashes,
+        d_tickets,
+        w_tickets,
     } = ProofOutputs::abi_decode(output_bytes, false).unwrap();
     println!("Packed UserOps: {:?}", user_ops);
     println!("abi decoded Sig User Address: {:?}", user_addrs);
     println!("abi decoded new_smt_root: {:?}", new_smt_root);
-    println!("abi decoded d_ticket_hashes: {:?}", d_ticket_hashes);
-    println!("abi decoded w_ticket_hashes: {:?}", w_ticket_hashes);
+    println!("abi decoded d_tickets: {:?}", d_tickets);
+    println!("abi decoded w_tickets: {:?}", w_tickets);
 }
 
 fn load_proof_inputs_from_file(file_path: &str) -> std::io::Result<ProofInputs> {

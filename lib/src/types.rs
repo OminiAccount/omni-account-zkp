@@ -109,8 +109,8 @@ sol! {
         PackedUserOperation[] user_ops;
         address[] user_addrs;
         bytes32 new_smt_root;
-        bytes32[] d_ticket_hashes;
-        bytes32[] w_ticket_hashes;
+        Ticket[] d_tickets;
+        Ticket[] w_tickets;
     }
 }
 

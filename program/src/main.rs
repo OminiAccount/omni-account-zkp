@@ -34,24 +34,24 @@ pub fn main() {
 
     // we will verify tickets onchain with two different mappings
     // no need to verify it here, just execute tickets and wait for onchain verification
-    let mut d_ticket_hashes = Vec::new();
+    let mut d_tickets = Vec::new();
     for d_ticket_input in proof_inputs.d_ticket_inputs {
         current_smt_root = update_balance_smt_by_d_ticket(
             d_ticket_input.delta_proof,
             d_ticket_input.ticket.clone(),
             current_smt_root,
         );
-        d_ticket_hashes.push(FixedBytes::<32>::new(d_ticket_input.ticket.hash()));
+        d_tickets.push(d_ticket_input.ticket);
     }
 
-    let mut w_ticket_hashes = Vec::new();
+    let mut w_tickets = Vec::new();
     for w_ticket_input in proof_inputs.w_ticket_inputs {
         current_smt_root = update_balance_smt_by_w_ticket(
             w_ticket_input.delta_proof,
             w_ticket_input.ticket.clone(),
             current_smt_root,
         );
-        w_ticket_hashes.push(FixedBytes::<32>::new(w_ticket_input.ticket.hash()));
+        w_tickets.push(w_ticket_input.ticket);
     }
 
     for userop_input in userop_inputs {
@@ -96,8 +96,8 @@ pub fn main() {
         user_ops: packed_userops,
         user_addrs,
         new_smt_root: smt_root_bytes.into(),
-        d_ticket_hashes,
-        w_ticket_hashes,
+        d_tickets,
+        w_tickets,
     });
 
     sp1_zkvm::io::commit_slice(&output_bytes);
