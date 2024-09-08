@@ -33,3 +33,7 @@ path = "bin/mock_input_json.rs"
 [[bin]]
 name = "backend_proof"
 path = "bin/backend_proof.rs"
+
+[[bin]]
+name = "intermediate_test"
+path = "bin/intermediate_test.rs"

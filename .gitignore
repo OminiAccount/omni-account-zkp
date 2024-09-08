@@ -19,3 +19,5 @@ pgo-data.profdata
 
 proof-with-pis.bin
 proof_inputs.json
+response_text.txt
+proof_inputs_*

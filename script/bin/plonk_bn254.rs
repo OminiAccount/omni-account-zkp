@@ -72,6 +72,7 @@ fn create_plonk_fixture(proof: &SP1ProofWithPublicValues, vk: &SP1VerifyingKey) 
     let output_bytes = proof.public_values.as_slice();
     let ProofOutputs {
         user_ops,
+        old_smt_root,
         new_smt_root,
         d_tickets,
         w_tickets,

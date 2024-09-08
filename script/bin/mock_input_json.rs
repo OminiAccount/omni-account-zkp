@@ -58,7 +58,7 @@ fn main() {
     );
     smt = updated_smt;
     let userop_inputs =
-        create_mock_userop_inputs(sender, private_key_hex, chain_id, 5, domain_info, smt);
+        create_mock_userop_inputs(sender, private_key_hex, chain_id, 1, domain_info, smt);
 
     let proof_inputs = ProofInputs {
         userop_inputs,

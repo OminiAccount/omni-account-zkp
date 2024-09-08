@@ -1,5 +1,6 @@
 pub mod conversions;
 pub mod types;
+pub mod types_intermediate;
 pub mod user_operation;
 pub mod zero_smt;
 

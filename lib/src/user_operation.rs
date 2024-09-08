@@ -29,7 +29,7 @@ pub fn create_mock_signed_user_operation(
     };
 
     let my_domain = alloy_sol_types::eip712_domain!(
-        name: "ZK-AA",
+        name: "OMNI-ACCOUNT",
         version: "1.0",
         chain_id: chain_id,
         verifying_contract: eth_address,
@@ -72,7 +72,7 @@ pub fn recover_public_key_from_userop_signature(
 ) -> VerifyingKey {
     // domain for omni-account dapp
     let omni_account_domain = alloy_sol_types::eip712_domain!(
-        name: "ZK-AA",
+        name: "OMNI-ACCOUNT",
         version: "1.0",
         chain_id: domain_chain_id,
         verifying_contract: domain_contract_addr,

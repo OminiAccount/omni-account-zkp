@@ -6,7 +6,10 @@ use sp1_sdk::{ProverClient, SP1Stdin};
 
 const ELF: &[u8] = include_bytes!("../../program/elf/riscv32im-succinct-zkvm-elf");
 
-use omni_account_lib::types::{ProofInputs, ProofOutputs};
+use omni_account_lib::{
+    types::{ProofInputs, ProofOutputs},
+    types_intermediate::ProofInputsIntermediate,
+};
 
 use alloy_sol_types::SolType;
 
@@ -15,8 +18,11 @@ fn main() {
     // Prepare Proof Inputs
     let mut stdin = SP1Stdin::new();
 
-    let proof_inputs: ProofInputs = load_proof_inputs_from_file("proof_inputs.json")
-        .expect("Failed to load proof inputs from file");
+    let proof_inputs_intermediate: ProofInputsIntermediate =
+        load_proof_inputs_from_file("proof_inputs_backend.json")
+            .expect("Failed to load proof inputs from file");
+    let proof_inputs = proof_inputs_intermediate.to_actual();
+    println!("PROOF INPUTS: {:?}", proof_inputs);
 
     stdin.write(&proof_inputs);
 
@@ -42,12 +48,13 @@ fn main() {
         w_tickets,
     } = ProofOutputs::abi_decode(output_bytes, false).unwrap();
     println!("Packed UserOps: {:?}", user_ops);
+    println!("abi decoded old_smt_root: {:?}", old_smt_root);
     println!("abi decoded new_smt_root: {:?}", new_smt_root);
     println!("abi decoded d_tickets: {:?}", d_tickets);
     println!("abi decoded w_tickets: {:?}", w_tickets);
 }
 
-fn load_proof_inputs_from_file(file_path: &str) -> std::io::Result<ProofInputs> {
+fn load_proof_inputs_from_file(file_path: &str) -> std::io::Result<ProofInputsIntermediate> {
     let file = File::open(file_path)?;
     let reader = BufReader::new(file);
     let proof_inputs = serde_json::from_reader(reader)?;

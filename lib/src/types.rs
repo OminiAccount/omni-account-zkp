@@ -107,6 +107,7 @@ sol! {
     /// The public values encoded as a struct that can be easily deserialized inside Solidity.
     struct ProofOutputs {
         PackedUserOperation[] user_ops;
+        bytes32 old_smt_root;
         bytes32 new_smt_root;
         Ticket[] d_tickets;
         Ticket[] w_tickets;

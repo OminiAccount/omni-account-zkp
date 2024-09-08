@@ -22,7 +22,8 @@ use omni_account_lib::{
 
 pub fn main() {
     let proof_inputs = sp1_zkvm::io::read::<ProofInputs>();
-    let mut current_smt_root = proof_inputs.old_smt_root;
+    let old_smt_root = proof_inputs.old_smt_root;
+    let mut current_smt_root = old_smt_root.clone();
     let userop_inputs = proof_inputs.userop_inputs;
     let mut packed_userops = Vec::new();
 
@@ -90,8 +91,10 @@ pub fn main() {
         );
     }
     let smt_root_bytes: [u8; 32] = hex::decode(current_smt_root).unwrap().try_into().unwrap();
+    let old_smt_root_bytes: [u8; 32] = hex::decode(old_smt_root).unwrap().try_into().unwrap();
     let output_bytes = ProofOutputs::abi_encode(&ProofOutputs {
         user_ops: packed_userops,
+        old_smt_root: old_smt_root_bytes.into(),
         new_smt_root: smt_root_bytes.into(),
         d_tickets,
         w_tickets,
