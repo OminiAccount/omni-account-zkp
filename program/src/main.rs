@@ -62,8 +62,8 @@ pub fn main() {
         let user_op = userop_input.user_operation;
         let sig_bytes = userop_input.sig_bytes;
         let recovery_id_byte = userop_input.eth_reconvery_id;
-        let domain_chain_id = userop_input.domain_info.domain_chain_id;
-        let domain_contract_addr_bytes = userop_input.domain_info.domain_contract_addr_bytes;
+        // let domain_chain_id = userop_input.domain_info.domain_chain_id;
+        // let domain_contract_addr_bytes = userop_input.domain_info.domain_contract_addr_bytes;
 
         // let user_op = user_op_rust.to_user_operation();
 
@@ -71,8 +71,8 @@ pub fn main() {
             sig_bytes,
             recovery_id_byte,
             user_op.clone(),
-            domain_contract_addr_bytes,
-            domain_chain_id,
+            // domain_contract_addr_bytes,
+            // domain_chain_id,
         );
         let packed_userop = PackedUserOperation::new(user_op.clone(), user_addr);
         packed_userops.push(packed_userop);
@@ -107,8 +107,8 @@ fn recover_eip712_userop_signature(
     sig_bytes: Vec<u8>,
     recovery_id_byte: u8,
     user_op: UserOperation,
-    domain_contract_addr_bytes: Vec<u8>,
-    domain_chain_id: u64,
+    // domain_contract_addr_bytes: Vec<u8>,
+    // domain_chain_id: u64,
 ) -> Address {
     // 1. get signature and recovery id
     let sig_bytes_fixed_size: [u8; 64] = sig_bytes
@@ -125,15 +125,15 @@ fn recover_eip712_userop_signature(
     // let user_op = user_op_rust.to_user_operation();
 
     // 3. get the domain info
-    let domain_contract_addr_arr: [u8; 20] = domain_contract_addr_bytes
-        .try_into()
-        .expect("fail to convert domain_contract_addr_bytes to [u8;20]");
+    // let domain_contract_addr_arr: [u8; 20] = domain_contract_addr_bytes
+    //     .try_into()
+    //     .expect("fail to convert domain_contract_addr_bytes to [u8;20]");
 
-    let domain_contract_addr = Address::from_slice(&domain_contract_addr_arr);
+    // let domain_contract_addr = Address::from_slice(&domain_contract_addr_arr);
     let verifying_key = recover_public_key_from_userop_signature(
         user_op,
-        domain_chain_id,
-        domain_contract_addr,
+        // domain_chain_id,
+        // domain_contract_addr,
         sig,
         recovery_id,
     );

@@ -7,7 +7,7 @@ use sha3::Keccak256;
 
 use crate::{
     conversions::addr_hex_to_bytes,
-    types::{DomainInfo, ProofInputs, Ticket, TicketInput, UserOpInput, UserOperation},
+    types::{ProofInputs, Ticket, TicketInput, UserOpInput, UserOperation},
     zero_smt::smt::{DeltaMerkleProof, MerkleNodeValue},
 };
 
@@ -48,7 +48,7 @@ pub struct UserOpInputIntermediate {
     pub user_operation: UserOperationIntermediate,
     pub sig_bytes: String,
     pub eth_reconvery_id: u8,
-    pub domain_info: DomainInfoIntermediate,
+    // pub domain_info: DomainInfoIntermediate,
     pub balance_delta_proof: DeltaMerkleProofIntermediate,
     pub nonce_delta_proof: DeltaMerkleProofIntermediate,
 }
@@ -110,15 +110,15 @@ impl DeltaMerkleProofIntermediate {
     }
 }
 
-impl DomainInfoIntermediate {
-    pub fn to_actual(self) -> DomainInfo {
-        // We hardcode Name and Version in our circuit
-        DomainInfo {
-            domain_chain_id: self.ChainId,
-            domain_contract_addr_bytes: hex::decode(self.VerifyingContract).unwrap(),
-        }
-    }
-}
+// impl DomainInfoIntermediate {
+//     pub fn to_actual(self) -> DomainInfo {
+//         // We hardcode Name and Version in our circuit
+//         DomainInfo {
+//             domain_chain_id: self.ChainId,
+//             domain_contract_addr_bytes: hex::decode(self.VerifyingContract).unwrap(),
+//         }
+//     }
+// }
 
 impl TicketIntermediate {
     pub fn to_actual(self) -> Ticket {
@@ -138,7 +138,7 @@ impl UserOpInputIntermediate {
             user_operation: self.user_operation.to_actual(),
             sig_bytes: hex::decode(self.sig_bytes).unwrap(),
             eth_reconvery_id: self.eth_reconvery_id,
-            domain_info: self.domain_info.to_actual(),
+            // domain_info: self.domain_info.to_actual(),
             balance_delta_proof: self.balance_delta_proof.to_actual(),
             nonce_delta_proof: self.nonce_delta_proof.to_actual(),
         }

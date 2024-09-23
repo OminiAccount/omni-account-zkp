@@ -79,11 +79,11 @@ impl PackedUserOperation {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DomainInfo {
-    pub domain_chain_id: u64,
-    pub domain_contract_addr_bytes: Vec<u8>,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// pub struct DomainInfo {
+//     pub domain_chain_id: u64,
+//     pub domain_contract_addr_bytes: Vec<u8>,
+// }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProofInputs {
@@ -98,7 +98,7 @@ pub struct UserOpInput {
     pub user_operation: UserOperation,
     pub sig_bytes: Vec<u8>,
     pub eth_reconvery_id: u8,
-    pub domain_info: DomainInfo,
+    // pub domain_info: DomainInfo,
     pub balance_delta_proof: DeltaMerkleProof,
     pub nonce_delta_proof: DeltaMerkleProof,
 }

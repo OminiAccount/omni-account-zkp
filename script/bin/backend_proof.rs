@@ -116,7 +116,7 @@ async fn main() {
 async fn run() -> Result<(), Box<dyn Error>> {
     let client = Client::new();
     let url = "https://api.omni-account.com";
-    let mut id = 1;
+    let id = 1;
 
     loop {
         // Step 1: Fetch proof task from backend
@@ -132,15 +132,15 @@ async fn run() -> Result<(), Box<dyn Error>> {
             let proof_data = plonk_bn254(proof_inputs, id);
 
             // Step 3: Send proof result to backend
-            send_proof_result(&client, url, proof_data, 1).await?;
+            send_proof_result(&client, url, proof_data, id).await?;
 
             println!("Proof result sent successfully");
-            id += 1;
+            // id += 1;
         } else {
             println!("No proof task available, retrying...");
         }
 
-        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
     }
 }
 

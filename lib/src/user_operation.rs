@@ -31,8 +31,8 @@ pub fn create_mock_signed_user_operation(
     let my_domain = alloy_sol_types::eip712_domain!(
         name: "OMNI-ACCOUNT",
         version: "1.0",
-        chain_id: chain_id,
-        verifying_contract: eth_address,
+        // chain_id: chain_id,
+        // verifying_contract: eth_address,
     );
 
     let mut digest_input = [0u8; 2 + 32 + 32];
@@ -65,8 +65,8 @@ pub fn create_mock_signed_user_operation(
 
 pub fn recover_public_key_from_userop_signature(
     user_op: UserOperation,
-    domain_chain_id: u64,
-    domain_contract_addr: Address,
+    // domain_chain_id: u64,
+    // domain_contract_addr: Address,
     sig: Signature,
     recid: RecoveryId,
 ) -> VerifyingKey {
@@ -74,8 +74,8 @@ pub fn recover_public_key_from_userop_signature(
     let omni_account_domain = alloy_sol_types::eip712_domain!(
         name: "OMNI-ACCOUNT",
         version: "1.0",
-        chain_id: domain_chain_id,
-        verifying_contract: domain_contract_addr,
+        // chain_id: domain_chain_id,
+        // verifying_contract: domain_contract_addr,
     );
 
     let mut digest_input = [0u8; 2 + 32 + 32];
@@ -113,8 +113,8 @@ mod tests {
 
         let verifying_key = recover_public_key_from_userop_signature(
             user_operation,
-            chain_id,
-            eth_address,
+            // chain_id,
+            // eth_address,
             sig,
             recid,
         );

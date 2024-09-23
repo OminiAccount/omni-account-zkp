@@ -9,9 +9,7 @@ const ELF: &[u8] = include_bytes!("../../program/elf/riscv32im-succinct-zkvm-elf
 
 use omni_account_lib::{
     conversions::{addr_hex_to_bytes, hex_to_alloy_address},
-    types::{
-        DomainInfo, ProofInputs, ProofOutputs, Ticket, TicketInput, UserOpInput, UserOperation,
-    },
+    types::{ProofInputs, ProofOutputs, Ticket, TicketInput, UserOpInput, UserOperation},
     user_operation::create_mock_signed_user_operation,
     zero_smt::{
         key::{compute_balance_key, compute_nonce_key, key_to_index},
@@ -29,12 +27,12 @@ fn main() {
     // Prepare Proof Inputs
     let mut stdin = SP1Stdin::new();
 
-    let domain_contract_addr_bytes =
-        addr_hex_to_bytes("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266").into();
-    let domain_info = DomainInfo {
-        domain_chain_id: 42161,
-        domain_contract_addr_bytes,
-    };
+    // let domain_contract_addr_bytes =
+    //     addr_hex_to_bytes("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266").into();
+    // let domain_info = DomainInfo {
+    //     domain_chain_id: 42161,
+    //     domain_contract_addr_bytes,
+    // };
 
     let private_key_hex = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
     let chain_id = 42161;
@@ -57,8 +55,7 @@ fn main() {
         false,
     );
     smt = updated_smt;
-    let userop_inputs =
-        create_mock_userop_inputs(sender, private_key_hex, chain_id, 1, domain_info, smt);
+    let userop_inputs = create_mock_userop_inputs(sender, private_key_hex, chain_id, 1, smt);
 
     let proof_inputs = ProofInputs {
         userop_inputs,
@@ -149,7 +146,7 @@ fn create_mock_userop_inputs(
     private_key_hex: &str,
     chain_id: u64,
     user_op_count: usize,
-    domain_info: DomainInfo,
+    // domain_info: DomainInfo,
     mut smt: ZeroMerkleTree,
 ) -> Vec<UserOpInput> {
     let mut userop_inputs = Vec::new();
@@ -177,7 +174,7 @@ fn create_mock_userop_inputs(
             user_operation: user_op,
             sig_bytes,
             eth_reconvery_id,
-            domain_info: domain_info.clone(),
+            // domain_info: domain_info.clone(),
             balance_delta_proof: new_bal_set_proof.clone(),
             nonce_delta_proof: new_nonce_set_proof.clone(),
         };
